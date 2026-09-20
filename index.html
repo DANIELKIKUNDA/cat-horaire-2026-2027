@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#082b4c">
+  <meta name="description" content="Portail officiel de consultation de l’horaire scolaire 2026-2027 du Collège des Aumôniers du Travail.">
+  <title>CAT Horaire 2026-2027</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <section class="auth-screen" id="auth-screen">
+    <div class="auth-visual">
+      <span class="auth-school-mark">CAT</span>
+      <div>
+        <span class="hero-kicker"><i></i> Portail sécurisé</span>
+        <h1>Votre horaire,<br><em>partout avec vous.</em></h1>
+        <p>Chaque enseignant consulte uniquement son propre horaire. La direction dispose de la vue complète certifiée.</p>
+      </div>
+      <small>Collège des Aumôniers du Travail · 2026-2027</small>
+    </div>
+    <div class="auth-panel">
+      <form class="login-card" id="login-form">
+        <span class="eyebrow">Espace personnel</span>
+        <h2>Se connecter</h2>
+        <p>Utilisez l’identifiant et le mot de passe remis par la direction.</p>
+        <label for="login-id">Identifiant</label>
+        <input id="login-id" name="login" autocomplete="username" placeholder="prenom.nom" required>
+        <label for="login-password">Mot de passe</label>
+        <div class="password-field">
+          <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+          <button id="password-toggle" type="button" aria-label="Afficher le mot de passe">Voir</button>
+        </div>
+        <button class="primary-button wide login-button" type="submit">Ouvrir mon horaire <span>→</span></button>
+        <div class="login-status" id="login-status" role="status" aria-live="polite"></div>
+        <small class="privacy-note">Connexion chiffrée · Accès personnel</small>
+      </form>
+    </div>
+  </section>
+
+  <div class="app-shell" id="app-shell" hidden>
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#dashboard" aria-label="Accueil">
+        <span class="brand-mark" aria-hidden="true">CAT</span>
+        <span><strong>CAT Horaire</strong><small>Année scolaire 2026-2027</small></span>
+      </a>
+
+      <nav class="main-nav" aria-label="Navigation principale">
+        <a href="#dashboard" data-view="dashboard" class="active"><span>⌂</span> Tableau de bord</a>
+        <a href="#classes" data-view="classes" data-director-only><span>▦</span> Horaire des classes</a>
+        <a href="#teachers" data-view="teachers"><span>♙</span> Horaire des enseignants</a>
+        <a href="#documents" data-view="documents" data-director-only><span>▤</span> Documents officiels</a>
+      </nav>
+
+      <div class="sidebar-card">
+        <span class="eyebrow">Solution certifiée</span>
+        <strong id="side-solution">Chargement…</strong>
+        <span class="status-line"><i></i> Validateur indépendant PASS</span>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="account-card">
+          <span class="account-avatar" id="account-avatar">U</span>
+          <span><strong id="account-name">Utilisateur</strong><small id="account-role">Compte sécurisé</small></span>
+        </div>
+        <button class="logout-button" id="logout-button" type="button">Se déconnecter</button>
+        <button class="theme-button" id="theme-toggle" type="button" aria-label="Changer le thème">◐ <span>Mode sombre</span></button>
+        <small>Collège des Aumôniers du Travail</small>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <button class="menu-button" id="menu-button" type="button" aria-label="Ouvrir le menu">☰</button>
+        <div class="topbar-title">
+          <span class="eyebrow">Portail officiel</span>
+          <h1 id="page-title">Tableau de bord</h1>
+        </div>
+        <div class="topbar-actions">
+          <label class="global-search">
+            <span aria-hidden="true">⌕</span>
+            <input id="global-search" type="search" placeholder="Rechercher une classe ou un professeur…" autocomplete="off">
+            <div class="search-results" id="search-results" hidden></div>
+          </label>
+          <div class="date-chip"><span id="today-label">Aujourd’hui</span><strong id="clock">--:--</strong></div>
+        </div>
+      </header>
+
+      <div class="content-wrap">
+        <section class="view active" id="view-dashboard" aria-labelledby="page-title">
+          <div class="hero-card">
+            <div class="hero-copy">
+              <span class="hero-kicker"><i></i> Horaire officiel publié</span>
+              <h2>Une semaine scolaire claire,<br><em>accessible partout.</em></h2>
+              <p>Consultez les cours par classe ou par enseignant, suivez la période en cours et téléchargez les documents certifiés.</p>
+              <div class="hero-actions">
+                <button class="primary-button" id="primary-schedule-button" data-go="classes">Voir les horaires</button>
+                <button class="secondary-button" data-go="documents" data-director-only>Documents PDF</button>
+              </div>
+            </div>
+            <div class="hero-orbit" aria-hidden="true">
+              <div class="orbit-ring ring-one"></div><div class="orbit-ring ring-two"></div>
+              <div class="hero-badge"><span>2026</span><strong>2027</strong><small>Année scolaire</small></div>
+            </div>
+          </div>
+
+          <div class="stats-grid" id="stats-grid"></div>
+
+          <div class="dashboard-grid">
+            <article class="panel live-panel">
+              <div class="panel-heading">
+                <div><span class="eyebrow">En direct</span><h3>Situation actuelle</h3></div>
+                <span class="live-pill" id="live-pill"><i></i> Actualisé</span>
+              </div>
+              <div id="live-content" class="live-content"></div>
+            </article>
+
+            <article class="panel quick-panel" data-director-only>
+              <div class="panel-heading"><div><span class="eyebrow">Accès rapide</span><h3>Consulter un horaire</h3></div></div>
+              <div class="segmented" role="tablist">
+                <button class="active" data-quick-type="class" type="button">Classe</button>
+                <button data-quick-type="teacher" type="button">Enseignant</button>
+              </div>
+              <label class="select-label" for="quick-select">Sélection</label>
+              <select id="quick-select"></select>
+              <button class="primary-button wide" id="quick-open" type="button">Ouvrir l’horaire <span>→</span></button>
+            </article>
+          </div>
+
+          <article class="panel week-preview">
+            <div class="panel-heading">
+              <div><span class="eyebrow">Vue d’ensemble</span><h3>Repères de la semaine</h3></div>
+              <span class="muted" id="week-range"></span>
+            </div>
+            <div class="day-strip" id="day-strip"></div>
+          </article>
+        </section>
+
+        <section class="view" id="view-classes" data-director-only>
+          <div class="section-intro">
+            <div><span class="eyebrow">34 classes certifiées</span><h2>Horaire par classe</h2><p>Choisissez une classe pour afficher sa semaine complète.</p></div>
+            <div class="entity-picker"><label for="class-select">Classe</label><select id="class-select"></select></div>
+          </div>
+          <div id="class-summary" class="summary-row"></div>
+          <div id="class-schedule" class="schedule-host"></div>
+        </section>
+
+        <section class="view" id="view-teachers">
+          <div class="section-intro">
+            <div><span class="eyebrow">30 enseignants</span><h2>Horaire par enseignant</h2><p>Retrouvez les cours, regroupements et créneaux physiques de chaque professeur.</p></div>
+            <div class="entity-picker"><label for="teacher-select">Enseignant</label><select id="teacher-select"></select></div>
+          </div>
+          <div id="teacher-summary" class="summary-row"></div>
+          <div id="teacher-schedule" class="schedule-host"></div>
+          <div id="teacher-note"></div>
+        </section>
+
+        <section class="view" id="view-documents" data-director-only>
+          <div class="section-intro">
+            <div><span class="eyebrow">Source unique certifiée</span><h2>Documents officiels</h2><p>Téléchargez les quatre éditions issues exactement de la solution publiée.</p></div>
+            <div class="certification-badge"><span>✓</span><div><strong>Certification PASS</strong><small id="document-solution"></small></div></div>
+          </div>
+          <div class="documents-grid" id="documents-grid"></div>
+          <article class="panel integrity-panel">
+            <div><span class="eyebrow">Intégrité</span><h3>Garantie de cohérence</h3><p>Les vues en ligne et les PDF proviennent de la même solution CP-SAT validée indépendamment.</p></div>
+            <div class="integrity-list" id="integrity-list"></div>
+          </article>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+  <script src="config.js" defer></script>
+  <script src="assets/app.js" defer></script>
+</body>
+</html>

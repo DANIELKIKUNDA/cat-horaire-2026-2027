@@ -1,0 +1,10 @@
+{
+  "name": "CAT Horaire 2026-2027",
+  "short_name": "CAT Horaire",
+  "description": "Portail officiel de l’horaire du Collège des Aumôniers du Travail.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#082b4c",
+  "icons": [{"src":"assets/favicon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}
