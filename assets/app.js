@@ -35,7 +35,14 @@ const titles = {
   dashboard: "Tableau de bord",
   classes: "Horaire des classes",
   teachers: "Horaire des enseignants",
+  operations: "Centre des opérations",
+  changes: "Changements intelligents",
+  announcements: "Annonces et alertes",
+  assistant: "Assistant CAT",
+  stats: "Statistiques",
+  accounts: "Comptes et accès",
   documents: "Documents officiels",
+  settings: "Mon compte",
 };
 
 const esc = (value) => String(value ?? "")
@@ -88,7 +95,7 @@ function populateSelect(select, items, valueKey = "id") {
 
 function setView(view, updateHash = true) {
   if (!titles[view]) view = "dashboard";
-  if (!isDirector() && ["classes", "documents"].includes(view)) view = "teachers";
+  if (!isDirector() && ["classes", "operations", "changes", "stats", "accounts", "documents"].includes(view)) view = "teachers";
   state.view = view;
   $$(".view").forEach((element) => element.classList.toggle("active", element.id === `view-${view}`));
   $$(".main-nav a").forEach((link) => link.classList.toggle("active", link.dataset.view === view));
@@ -156,6 +163,7 @@ function renderDayStrip() {
 }
 
 function scheduleEntries(type, owner, day, period) {
+  if (window.CATSmart && state.data?.features) return window.CATSmart.scheduleEntries(type, owner, day, period);
   const key = `${day}:${period}`;
   if (type === "class") {
     const item = state.data.classSchedule[owner]?.[key];
@@ -166,7 +174,7 @@ function scheduleEntries(type, owner, day, period) {
 
 function lessonHtml(entry, type, isLive) {
   const detail = type === "class" ? entry.teacher : entry.classes.join(", ");
-  return `<div class="lesson ${isLive ? "is-live" : ""}"><strong>${esc(entry.course)}</strong><span>${esc(detail)}</span></div>`;
+  return `<div class="lesson ${isLive ? "is-live" : ""} ${entry.changed ? "is-changed" : ""}"><strong>${esc(entry.course)}${entry.changed ? ' <i>Modifié</i>' : ''}</strong><span>${esc(detail)}</span></div>`;
 }
 
 function emptyHtml(day, period, type) {
@@ -285,6 +293,10 @@ function showToast(message) {
   clearTimeout(showToast.timer); showToast.timer = setTimeout(() => toast.classList.remove("show"), 2400);
 }
 
+function smartContext() {
+  return {state, isDirector, setView, renderTeacher, renderClass, showToast, esc, populateSelect, liveContext, scheduleEntries, reload: loadPortal};
+}
+
 
 async function openDocument(path) {
   if (!isDirector()) return;
@@ -353,6 +365,7 @@ function bindEvents() {
     $("#theme-toggle span").textContent = dark ? "Mode clair" : "Mode sombre";
   });
   window.addEventListener("hashchange", () => setView(location.hash.slice(1) || "dashboard", false));
+  window.CATSmart?.bind(smartContext());
 }
 
 async function loadPortal() {
@@ -366,15 +379,24 @@ async function loadPortal() {
     $("#side-solution").textContent = state.data.meta.solutionId;
     if (isDirector()) populateSelect($("#class-select"), state.data.classes);
     populateSelect($("#teacher-select"), state.data.teachers);
+    if (isDirector()) populateSelect($("#announcement-teacher"), state.data.teachers);
     applyRole();
     renderStats(); renderLive(); renderDayStrip(); renderTeacher();
     if (isDirector()) { renderQuickOptions(); renderClass(); renderDocuments(); }
+    window.CATSmart?.render(smartContext());
     updateClock(); setInterval(() => { updateClock(); renderLive(); }, 60_000);
     showPortal();
     setView(location.hash.slice(1) || "dashboard", false);
   } catch (error) {
     console.error(error);
-    showLogin("Impossible de charger votre horaire. Contactez la direction.");
+    const username = $("#login-id").value.trim().toLowerCase() || "";
+    const offline = window.CATSmart?.loadOffline(username);
+    if (offline) {
+      state.data = offline.data; state.profile = offline.profile;
+      populateSelect($("#teacher-select"), state.data.teachers); applyRole();
+      renderStats(); renderLive(); renderDayStrip(); renderTeacher(); window.CATSmart.render(smartContext());
+      showPortal(); setView("dashboard", false); showToast("Mode hors connexion · dernière synchronisation");
+    } else showLogin("Impossible de charger votre horaire. Contactez la direction.");
   }
 }
 

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#082b4c">
   <meta name="description" content="Portail officiel de consultation de l’horaire scolaire 2026-2027 du Collège des Aumôniers du Travail.">
-  <title>CAT Horaire 2026-2027</title>
+  <title>CAT Smart Horaire 2026-2027</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="assets/styles.css">
@@ -44,14 +44,21 @@
     <aside class="sidebar" id="sidebar">
       <a class="brand" href="#dashboard" aria-label="Accueil">
         <span class="brand-mark" aria-hidden="true">CAT</span>
-        <span><strong>CAT Horaire</strong><small>Année scolaire 2026-2027</small></span>
+        <span><strong>CAT Smart</strong><small>Horaire intelligent · 2026-2027</small></span>
       </a>
 
       <nav class="main-nav" aria-label="Navigation principale">
         <a href="#dashboard" data-view="dashboard" class="active"><span>⌂</span> Tableau de bord</a>
         <a href="#classes" data-view="classes" data-director-only><span>▦</span> Horaire des classes</a>
         <a href="#teachers" data-view="teachers"><span>♙</span> Horaire des enseignants</a>
+        <a href="#operations" data-view="operations" data-director-only><span>◉</span> Centre en direct</a>
+        <a href="#changes" data-view="changes" data-director-only><span>⇄</span> Changements</a>
+        <a href="#announcements" data-view="announcements"><span>◈</span> Annonces <b class="nav-badge" id="announcement-nav-badge" hidden>0</b></a>
+        <a href="#assistant" data-view="assistant"><span>✦</span> Assistant</a>
+        <a href="#stats" data-view="stats" data-director-only><span>▥</span> Statistiques</a>
+        <a href="#accounts" data-view="accounts" data-director-only><span>◎</span> Comptes</a>
         <a href="#documents" data-view="documents" data-director-only><span>▤</span> Documents officiels</a>
+        <a href="#settings" data-view="settings"><span>⚙</span> Paramètres</a>
       </nav>
 
       <div class="sidebar-card">
@@ -84,6 +91,8 @@
             <input id="global-search" type="search" placeholder="Rechercher une classe ou un professeur…" autocomplete="off">
             <div class="search-results" id="search-results" hidden></div>
           </label>
+          <button class="top-action" id="install-app-button" type="button" title="Installer l’application">＋<span>Installer</span></button>
+          <button class="notification-button" id="notification-button" type="button" aria-label="Voir les notifications">◈<b id="notification-count" hidden>0</b></button>
           <div class="date-chip"><span id="today-label">Aujourd’hui</span><strong id="clock">--:--</strong></div>
         </div>
       </header>
@@ -106,7 +115,11 @@
             </div>
           </div>
 
+          <div id="smart-focus" class="smart-focus"></div>
+
           <div class="stats-grid" id="stats-grid"></div>
+
+          <div id="dashboard-alerts"></div>
 
           <div class="dashboard-grid">
             <article class="panel live-panel">
@@ -136,6 +149,78 @@
             </div>
             <div class="day-strip" id="day-strip"></div>
           </article>
+        </section>
+
+        <section class="view" id="view-operations" data-director-only>
+          <div class="section-intro">
+            <div><span class="eyebrow">Pilotage en temps réel</span><h2>Centre des opérations</h2><p>Visualisez les cours en cours, les enseignants disponibles et les changements du jour.</p></div>
+            <span class="live-pill"><i></i> Données actualisées</span>
+          </div>
+          <div id="operations-kpis" class="stats-grid"></div>
+          <div class="operations-layout">
+            <article class="panel"><div class="panel-heading"><div><span class="eyebrow">Maintenant</span><h3>Activité de l’école</h3></div><span id="operations-period" class="period-badge"></span></div><div id="operations-live-grid" class="operations-grid"></div></article>
+            <article class="panel"><div class="panel-heading"><div><span class="eyebrow">Disponibilités</span><h3>Enseignants libres</h3></div></div><div id="available-teachers" class="chip-cloud"></div></article>
+          </div>
+          <article class="panel timeline-panel"><div class="panel-heading"><div><span class="eyebrow">Aujourd’hui</span><h3>Chronologie des périodes</h3></div></div><div id="operations-timeline" class="operations-timeline"></div></article>
+        </section>
+
+        <section class="view" id="view-changes" data-director-only>
+          <div class="section-intro">
+            <div><span class="eyebrow">Moteur de contrôle</span><h2>Changements intelligents</h2><p>Déplacez ou annulez une séance datée avec vérification automatique des collisions.</p></div>
+            <span class="smart-badge">✦ Vérification instantanée</span>
+          </div>
+          <div class="changes-layout">
+            <form class="panel smart-form" id="change-form">
+              <div class="panel-heading"><div><span class="eyebrow">Nouvelle opération</span><h3>Simuler un changement</h3></div></div>
+              <label>Rechercher un cours<input id="change-search" type="search" placeholder="Professeur, matière ou classe…"></label>
+              <label>Séance source<select id="change-source" required></select></label>
+              <div class="form-grid">
+                <label>Date d’application<input id="change-date" type="date" required></label>
+                <label>Action<select id="change-type"><option value="move">Déplacer</option><option value="cancel">Annuler</option></select></label>
+                <label data-move-field>Nouveau jour<select id="change-day"></select></label>
+                <label data-move-field>Nouvelle période<select id="change-period"></select></label>
+              </div>
+              <label>Motif<textarea id="change-reason" rows="3" placeholder="Réunion, indisponibilité, activité scolaire…"></textarea></label>
+              <div class="form-actions"><button class="secondary-ink-button" id="analyze-change" type="button">Analyser</button><button class="primary-button" id="publish-change" type="submit" disabled>Publier le changement</button></div>
+              <div id="change-analysis" class="analysis-box"></div>
+            </form>
+            <article class="panel"><div class="panel-heading"><div><span class="eyebrow">Registre</span><h3>Changements publiés</h3></div></div><div id="changes-list" class="activity-list"></div></article>
+          </div>
+        </section>
+
+        <section class="view" id="view-announcements">
+          <div class="section-intro">
+            <div><span class="eyebrow">Communication scolaire</span><h2>Annonces et alertes</h2><p>Les informations qui vous concernent, avec confirmation de lecture.</p></div>
+          </div>
+          <form class="panel announcement-composer" id="announcement-form" data-director-only>
+            <div class="panel-heading"><div><span class="eyebrow">Direction</span><h3>Publier une annonce</h3></div></div>
+            <div class="form-grid three"><label>Titre<input id="announcement-title" maxlength="140" required></label><label>Priorité<select id="announcement-level"><option value="info">Information</option><option value="important">Important</option><option value="urgent">Urgent</option></select></label><label>Destinataires<select id="announcement-audience"><option value="all">Tout le personnel</option><option value="teachers">Enseignants</option><option value="direction">Direction</option><option value="teacher">Un enseignant</option></select></label></div>
+            <label id="announcement-teacher-wrap" hidden>Enseignant<select id="announcement-teacher"></select></label>
+            <label>Message<textarea id="announcement-body" rows="4" maxlength="3000" required></textarea></label>
+            <div class="form-actions"><button class="primary-button" type="submit">Publier maintenant</button></div>
+          </form>
+          <div id="announcements-list" class="announcement-grid"></div>
+        </section>
+
+        <section class="view" id="view-assistant">
+          <div class="assistant-shell">
+            <div class="assistant-hero"><span class="assistant-mark">✦</span><span class="eyebrow">CAT Intelligence</span><h2>Que voulez-vous savoir ?</h2><p>Interrogez l’horaire en langage naturel. Les réponses respectent vos droits d’accès.</p></div>
+            <div id="assistant-messages" class="assistant-messages"><div class="assistant-message bot"><span>✦</span><p>Bonjour. Demandez par exemple : <strong>« Mon prochain cours »</strong> ou, pour la Direction, <strong>« Qui est libre mardi P5 ? »</strong></p></div></div>
+            <div class="assistant-suggestions" id="assistant-suggestions"></div>
+            <form id="assistant-form" class="assistant-input"><input id="assistant-query" autocomplete="off" placeholder="Posez votre question sur l’horaire…"><button type="submit">Envoyer <span>→</span></button></form>
+          </div>
+        </section>
+
+        <section class="view" id="view-stats" data-director-only>
+          <div class="section-intro"><div><span class="eyebrow">Analyse pédagogique</span><h2>Statistiques intelligentes</h2><p>Une lecture claire des charges, des journées et des regroupements.</p></div><button class="secondary-ink-button" id="export-stats" type="button">Exporter CSV</button></div>
+          <div id="stats-kpis" class="stats-grid"></div>
+          <div class="analytics-grid"><article class="panel"><div class="panel-heading"><div><span class="eyebrow">Enseignants</span><h3>Charges hebdomadaires</h3></div></div><div id="teacher-load-chart" class="bar-chart"></div></article><article class="panel"><div class="panel-heading"><div><span class="eyebrow">Semaine</span><h3>Activité par jour</h3></div></div><div id="day-load-chart" class="bar-chart"></div></article></div>
+        </section>
+
+        <section class="view" id="view-accounts" data-director-only>
+          <div class="section-intro"><div><span class="eyebrow">Sécurité</span><h2>Comptes et accès</h2><p>Contrôlez les accès sans exposer les mots de passe.</p></div><span class="security-chip">● RLS actif</span></div>
+          <article class="panel"><div class="account-toolbar"><input id="account-search" type="search" placeholder="Rechercher un compte…"><span id="account-summary"></span></div><div id="accounts-table" class="accounts-table"></div></article>
+          <article class="panel audit-panel"><div class="panel-heading"><div><span class="eyebrow">Traçabilité</span><h3>Journal des actions</h3></div></div><div id="audit-list" class="activity-list"></div></article>
         </section>
 
         <section class="view" id="view-classes" data-director-only>
@@ -168,6 +253,14 @@
             <div class="integrity-list" id="integrity-list"></div>
           </article>
         </section>
+
+        <section class="view" id="view-settings">
+          <div class="section-intro"><div><span class="eyebrow">Préférences</span><h2>Mon compte</h2><p>Personnalisez votre expérience et protégez votre accès.</p></div></div>
+          <div class="settings-grid">
+            <article class="panel profile-panel"><span class="profile-large" id="settings-avatar">U</span><h3 id="settings-name">Utilisateur</h3><p id="settings-role"></p><button class="secondary-ink-button" id="settings-install" type="button">Installer l’application</button><button class="secondary-ink-button" id="enable-notifications" type="button">Activer les notifications</button><button class="secondary-ink-button" id="export-calendar" type="button">Ajouter à mon calendrier</button></article>
+            <form class="panel smart-form" id="password-form"><div class="panel-heading"><div><span class="eyebrow">Sécurité</span><h3>Changer mon mot de passe</h3></div></div><label>Nouveau mot de passe<input id="new-password" type="password" minlength="10" required></label><label>Confirmer le mot de passe<input id="confirm-password" type="password" minlength="10" required></label><button class="primary-button" type="submit">Mettre à jour</button><div id="password-status" class="login-status"></div></form>
+          </div>
+        </section>
       </div>
     </main>
   </div>
@@ -175,6 +268,7 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
   <script src="config.js" defer></script>
+  <script src="assets/smart.js" defer></script>
   <script src="assets/app.js" defer></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 {
-  "name": "CAT Horaire 2026-2027",
-  "short_name": "CAT Horaire",
-  "description": "Portail officiel de l’horaire du Collège des Aumôniers du Travail.",
+  "name": "CAT Smart Horaire 2026-2027",
+  "short_name": "CAT Smart",
+  "description": "Assistant intelligent et sécurisé de l’horaire du Collège des Aumôniers du Travail.",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#f4f7fb",
