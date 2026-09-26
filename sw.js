@@ -1,4 +1,4 @@
-const CACHE = "horaire-pro-shell-v4";
+const CACHE = "horaire-pro-shell-v5";
 const CORE = [
   "./", "index.html", "assets/styles.css", "assets/supabase.min.js", "assets/platform.js", "assets/smart.js", "assets/app.js",
   "assets/horaire-pro-logo.svg", "assets/favicon.svg", "assets/icon-192.png", "assets/icon-512.png",

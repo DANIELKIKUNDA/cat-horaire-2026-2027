@@ -4,6 +4,7 @@
   let installPrompt = null;
   let realtimeStarted = false;
   let lastAnalysis = null;
+  let lastPeriodToken = "";
   const DAYS = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"];
   const PERIODS = ["P1","P2","P3","P4","P5","P6","P7"];
   const DAY_INDEX = Object.fromEntries(DAYS.map((day,index) => [day,index]));
@@ -59,13 +60,29 @@
     return [...seen.values()];
   }
 
+  function clockSeconds() {
+    const parts=new Intl.DateTimeFormat("en-GB",{timeZone:"Africa/Kinshasa",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}).formatToParts(new Date());
+    const p=Object.fromEntries(parts.map(x=>[x.type,Number(x.value)]));return p.hour*3600+p.minute*60+p.second;
+  }
+  function timeSeconds(value){const [hour,minute]=value.split(":").map(Number);return hour*3600+minute*60;}
+  function formatCountdown(total){const seconds=Math.max(0,total);const h=Math.floor(seconds/3600);const m=Math.floor((seconds%3600)/60);const s=seconds%60;return h?`${h} h ${String(m).padStart(2,"0")} min`:`${m} min ${String(s).padStart(2,"0")} s`;}
+  function updateCountdown(){
+    const value=$("#period-countdown"),bar=$("#period-progress");if(!value)return;
+    const live=ctx.liveContext(),now=clockSeconds();
+    if(live.current){const [start,end]=live.current.time.split("-").map(timeSeconds);value.textContent=`Encore ${formatCountdown(end-now)}`;if(bar)bar.style.width=`${Math.min(100,Math.max(0,(now-start)/(end-start)*100))}%`;return;}
+    if(live.next){const start=timeSeconds(live.next.time.split("-")[0]);value.textContent=`Commence dans ${formatCountdown(start-now)}`;if(bar)bar.style.width="0%";return;}
+    value.textContent="Journée terminée";if(bar)bar.style.width="100%";
+  }
+
   function renderFocus() {
     const host=$("#smart-focus"); if (!host) return;
     const live=ctx.liveContext();
     if (!ctx.state.data.days.includes(live.day)) {
       host.innerHTML=`<article class="focus-card focus-main"><span class="focus-icon">☀</span><div><small>École au repos</small><strong>Profitez de votre journée</strong><p>Le prochain programme est disponible dans votre horaire.</p></div></article>`; return;
     }
-    if (ctx.isDirector()) {
+    const teacher=ctx.state.profile.teacher_id;
+    const hasPersonalSchedule=Boolean(teacher&&ctx.state.data.teacherSchedule?.[teacher]);
+    if (!hasPersonalSchedule) {
       const current=live.current; const sessions=current ? allEntriesAt(live.day,current.id) : [];
       const occupied=new Set(sessions.map(x=>x.teacher));
       const changes=activeChanges().filter(c=>c.effective_date===kinshasaDate());
@@ -75,7 +92,6 @@
       host.querySelector('[data-go]')?.addEventListener("click",()=>ctx.setView("operations"));
       return;
     }
-    const teacher=ctx.state.profile.teacher_id;
     const periods=ctx.state.data.periods[live.day]||[];
     const lessons=periods.map(p=>({period:p,entries:scheduleEntries("teacher",teacher,live.day,p.id)})).filter(x=>x.entries.length);
     const current=live.current ? lessons.find(x=>x.period.id===live.current.id) : null;
@@ -84,10 +100,14 @@
       const [hh,mm]=x.period.time.split("-")[0].split(":").map(Number); return hh*60+mm>minute;
     });
     const primary=current||next;
+    const complete=lessons.filter(x=>timeSeconds(x.period.time.split("-")[1])<=clockSeconds()).length;
+    const directorCard=ctx.isDirector()?(()=>{const sessions=live.current?allEntriesAt(live.day,live.current.id):[];return `<article class="focus-card direction-snapshot"><span class="focus-mini-icon">◆</span><div><small>Espace Direction</small><strong>${sessions.length} séances actives</strong><p>${new Set(sessions.map(x=>x.teacher)).size} enseignants mobilisés</p></div><button data-go="operations">Centre en direct →</button></article>`;})():`<article class="focus-card"><span class="focus-mini-icon">◷</span><div><small>Aujourd’hui</small><strong>${lessons.length} cours</strong><p>${complete} terminé${complete>1?"s":""} · ${Math.max(0,lessons.length-complete-(current?1:0))} à venir</p></div></article>`;
     host.innerHTML=`
-      <article class="focus-card focus-main"><span class="focus-icon ${current?"pulse":""}">${current?"▶":"→"}</span><div><small>${current?"En cours maintenant":"Prochain cours"}</small><strong>${primary?h(primary.entries[0].course):"Journée terminée"}</strong><p>${primary?`${h(primary.period.id)} · ${h(primary.period.time)} · ${h(primary.entries[0].classes.join(", "))}`:"Votre prochain programme est visible dans la semaine."}</p></div><button data-go="teachers">Mon horaire →</button></article>
-      <article class="focus-card"><span class="focus-mini-icon">◷</span><div><small>Aujourd’hui</small><strong>${lessons.length} cours</strong><p>${42-(ctx.state.data.teachers[0]?.physicalSlots||0)} créneaux libres par semaine</p></div></article>`;
-    host.querySelector('[data-go]')?.addEventListener("click",()=>ctx.setView("teachers"));
+      <article class="focus-card focus-main intelligent-focus"><span class="focus-icon ${current?"pulse":""}">${current?"▶":"→"}</span><div><small>${current?"En cours maintenant":next?"Prochain cours":"Programme terminé"}</small><strong>${primary?h(primary.entries[0].course):"Journée terminée"}</strong><p>${primary?`${h(primary.period.id)} · ${h(primary.period.time)} · ${h(primary.entries[0].classes.join(", "))}`:"Votre prochain programme est visible dans la semaine."}</p><div class="period-meter"><i id="period-progress"></i></div><b id="period-countdown">Synchronisation…</b></div><button data-go="teachers">Mon horaire →</button></article>
+      ${directorCard}
+      <article class="day-journey"><div class="journey-heading"><div><small>Votre journée</small><strong>${h(teacher)}</strong></div><span>${lessons.length} cours</span></div><div class="journey-track">${lessons.length?lessons.map(item=>{const active=current?.period.id===item.period.id;const done=timeSeconds(item.period.time.split("-")[1])<=clockSeconds();const upcoming=next?.period.id===item.period.id;return `<div class="journey-step ${active?"active":done?"done":upcoming?"next":""}"><i>${done?"✓":active?"▶":item.period.id}</i><div><strong>${h(item.entries[0].course)}</strong><small>${h(item.period.time)} · ${h(item.entries[0].classes.join(", "))}</small></div></div>`;}).join(""):`<div class="empty-state">Aucun cours aujourd’hui.</div>`}</div></article>`;
+    $$('[data-go]',host).forEach(button=>button.addEventListener("click",()=>ctx.setView(button.dataset.go)));
+    updateCountdown();
   }
 
   function renderDashboardAlerts() {
@@ -231,7 +251,21 @@
   function barRows(items,max){const ceiling=Math.max(1,max||0);return items.map(({label,value,meta})=>`<div class="bar-row"><div><strong>${h(label)}</strong><small>${h(meta||`${value} h`)}</small></div><i><span style="width:${Math.max(3,value/ceiling*100)}%"></span></i><b>${value}</b></div>`).join("");}
   function renderStats(){if(!ctx.isDirector())return;const teachers=[...ctx.state.data.teachers].sort((a,b)=>b.hours-a.hours);const avg=teachers.length?(teachers.reduce((s,t)=>s+t.hours,0)/teachers.length).toFixed(1):"0.0";const grouped=new Set((features().cells||[]).filter(c=>c.class_ids.length>1).map(c=>c.assignment_id)).size;$("#stats-kpis").innerHTML=[["♙",avg,"Charge moyenne"],["▲",teachers[0]?.hours||0,"Charge maximale"],["◫",grouped,"Cours groupés"],["✓",ctx.state.data.meta.classCount,"Classes suivies"]].map(([i,v,l])=>`<article class="stat-card"><span class="stat-icon">${i}</span><div><strong>${v}</strong><small>${l}</small></div></article>`).join("");$("#teacher-load-chart").innerHTML=teachers.length?barRows(teachers.map(t=>({label:t.id,value:t.hours})),Math.max(...teachers.map(t=>t.hours))):`<div class="empty-state">Aucun enseignant dans cet horaire.</div>`;const days=DAYS.map(day=>({label:day,value:new Set((features().cells||[]).filter(c=>c.day===day).map(c=>`${c.assignment_id}|${c.period}`)).size,meta:"séances physiques"}));$("#day-load-chart").innerHTML=barRows(days,Math.max(...days.map(d=>d.value)));}
 
-  function renderAccounts(filter=""){if(!ctx.isDirector())return;const q=normalize(filter);const profiles=(features().profiles||[]).filter(p=>!q||normalize(`${p.full_name} ${p.username} ${(p.roles||[p.role]).join(" ")}`).includes(q));$("#account-summary").textContent=`${profiles.filter(p=>p.is_active).length} actifs · ${profiles.filter(p=>!p.is_active).length} suspendus`;$("#accounts-table").innerHTML=`<div class="account-table-head"><span>Compte</span><span>Identifiant</span><span>Rôles</span><span>État</span><span>Actions</span></div>${profiles.map(p=>`<div class="account-table-row"><span><i>${h(p.full_name.charAt(0))}</i><strong>${h(p.full_name)}</strong></span><code>${h(p.username)}</code><span>${h((p.roles||[p.role]).join(" · "))}</span><b class="${p.is_active?"active":"suspended"}">${p.is_active?"Actif":"Suspendu"}</b><span class="account-actions"><button data-profile="${p.id}" data-membership="${p.membership_id||""}" data-roles="${h((p.roles||[p.role]).join(","))}" data-teacher="${h(p.teacher_id||"")}" data-active="${p.is_active}">${p.is_active?"Suspendre":"Réactiver"}</button>${ctx.state.platform?`<button data-edit-profile="${p.id}">Gérer</button>`:""}</span></div>`).join("")}`;$$('[data-profile]',$("#accounts-table")).forEach(b=>b.addEventListener("click",()=>toggleAccount(b.dataset,b.dataset.active!=="true")));$$('[data-edit-profile]',$("#accounts-table")).forEach(b=>b.addEventListener("click",()=>window.HoraireProPlatform?.openMembership(b.dataset.editProfile)));}
+  const roleNames={teacher:"Enseignant",direction:"Direction",admin:"Admin",scheduler:"Planificateur",viewer:"Lecteur"};
+  function renderAccounts(filter=$("#account-search")?.value||""){
+    if(!ctx.isDirector()||!ctx.canManageAccounts())return;
+    const all=features().profiles||[],q=normalize(filter),role=$("#account-role-filter")?.value||"",status=$("#account-status-filter")?.value||"";
+    const profiles=all.filter(p=>{
+      const memberRoles=p.roles||[p.role];
+      return (!q||normalize(`${p.full_name} ${p.username} ${memberRoles.join(" ")} ${p.teacher_id||""}`).includes(q))&&(!role||memberRoles.includes(role))&&(!status||(status==="active")===Boolean(p.is_active));
+    });
+    const teachers=all.filter(p=>(p.roles||[]).includes("teacher")).length,direction=all.filter(p=>(p.roles||[]).some(r=>["direction","admin","scheduler"].includes(r))).length,active=all.filter(p=>p.is_active).length;
+    $("#account-kpis").innerHTML=[["◎",all.length,"Comptes"],["✓",active,"Actifs"],["♙",teachers,"Enseignants"],["◆",direction,"Direction & gestion"]].map(([i,v,l])=>`<article><span>${i}</span><div><strong>${v}</strong><small>${l}</small></div></article>`).join("");
+    $("#account-summary").textContent=`${profiles.length} résultat${profiles.length>1?"s":""}`;
+    $("#accounts-table").innerHTML=`<div class="account-table-head"><span>Compte</span><span>Identifiant</span><span>Rôles</span><span>État</span><span>Actions</span></div>${profiles.map(p=>{const memberRoles=p.roles||[p.role];return `<div class="account-table-row"><span><i>${h(p.full_name.charAt(0))}</i><span><strong>${h(p.full_name)}</strong><small>${p.teacher_id?`Lié à ${h(p.teacher_id)}`:"Aucun enseignant lié"}</small></span></span><code>${h(p.username)}</code><span class="role-badges">${memberRoles.map(r=>`<em>${h(roleNames[r]||r)}</em>`).join("")}</span><b class="${p.is_active?"active":"suspended"}">${p.is_active?"Actif":"Suspendu"}</b><span class="account-actions"><button data-profile="${p.id}" data-membership="${p.membership_id||""}" data-roles="${h(memberRoles.join(","))}" data-teacher="${h(p.teacher_id||"")}" data-active="${p.is_active}">${p.is_active?"Suspendre":"Réactiver"}</button>${ctx.state.platform?`<button class="manage" data-edit-profile="${p.id}">Gérer</button>`:""}</span></div>`;}).join("")||`<div class="empty-state">Aucun compte ne correspond à ces filtres.</div>`}`;
+    $$('[data-profile]',$("#accounts-table")).forEach(b=>b.addEventListener("click",()=>toggleAccount(b.dataset,b.dataset.active!=="true")));
+    $$('[data-edit-profile]',$("#accounts-table")).forEach(b=>b.addEventListener("click",()=>window.HoraireProPlatform?.openMembership(b.dataset.editProfile)));
+  }
   async function toggleAccount(profile,active){const modern=Boolean(ctx.state.platform&&profile.membership);const {error}=modern
     ?await ctx.state.client.rpc("set_membership_state",{p_membership_id:profile.membership,p_status:active?"active":"disabled",p_roles:profile.roles.split(",").filter(Boolean),p_teacher_ref:profile.teacher||null})
     :await ctx.state.client.rpc("set_profile_active",{p_profile_id:profile.profile,p_active:active});
@@ -240,7 +274,14 @@
 
   function icsEscape(value){return String(value).replaceAll("\\","\\\\").replaceAll(",","\\,").replaceAll(";","\\;").replaceAll("\n","\\n");}
   function exportCalendar(){const teacher=ctx.isDirector()?(ctx.state.selectedTeacher||ctx.state.data.teachers[0].id):ctx.state.profile.teacher_id;const schedule=ctx.state.data.teacherSchedule[teacher]||{};let lines=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//CAT//Smart Horaire//FR","CALSCALE:GREGORIAN","X-WR-CALNAME:"+icsEscape(`CAT · ${teacher}`)];const startMonday=parseISO(currentWeekDate("Lundi"));for(let week=0;week<16;week++){for(const [slot,entries] of Object.entries(schedule)){const [day,period]=slot.split(":");const p=ctx.state.data.periods[day].find(x=>x.id===period);if(!p)continue;const date=new Date(startMonday);date.setDate(date.getDate()+week*7+DAY_INDEX[day]);const ds=`${date.getFullYear()}${String(date.getMonth()+1).padStart(2,"0")}${String(date.getDate()).padStart(2,"0")}`;const [start,end]=p.time.split("-").map(t=>t.replace(":",""));for(const e of entries){lines.push("BEGIN:VEVENT",`UID:${icsEscape(e.assignmentId)}-${ds}-${period}@cat-horaire`,`DTSTART;TZID=Africa/Kinshasa:${ds}T${start}00`,`DTEND;TZID=Africa/Kinshasa:${ds}T${end}00`,`SUMMARY:${icsEscape(e.course)}`,`DESCRIPTION:${icsEscape(e.classes.join(", "))}`,"END:VEVENT");}}}lines.push("END:VCALENDAR");const blob=new Blob([lines.join("\r\n")],{type:"text/calendar;charset=utf-8"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`CAT_${teacher.replaceAll(" ","_")}.ics`;a.click();URL.revokeObjectURL(a.href);ctx.showToast("Calendrier téléchargé");}
-  async function changePassword(event){event.preventDefault();const a=$("#new-password").value,b=$("#confirm-password").value,status=$("#password-status");if(a!==b){status.textContent="Les mots de passe ne correspondent pas.";return;}const {error}=await ctx.state.client.auth.updateUser({password:a});status.textContent=error?error.message:"Mot de passe mis à jour.";status.classList.toggle("success",!error);if(!error)event.target.reset();}
+  async function updateOwnPassword(a,b,status,form,required=false){
+    if(a!==b){status.textContent="Les mots de passe ne correspondent pas.";return;}
+    const {error}=await ctx.state.client.auth.updateUser({password:a,data:{must_change_password:false}});
+    status.textContent=error?error.message:"Mot de passe mis à jour.";status.classList.toggle("success",!error);
+    if(!error){ctx.state.profile.must_change_password=false;form.reset();if(required)$("#password-required-modal").hidden=true;ctx.showToast("Votre compte est sécurisé");}
+  }
+  async function changePassword(event){event.preventDefault();await updateOwnPassword($("#new-password").value,$("#confirm-password").value,$("#password-status"),event.target);}
+  async function changeRequiredPassword(event){event.preventDefault();await updateOwnPassword($("#required-new-password").value,$("#required-confirm-password").value,$("#required-password-status"),event.target,true);}
 
   function vapidBytes(value){const padding="=".repeat((4-value.length%4)%4);const raw=atob((value+padding).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));}
   async function subscribePush(){const vapid=window.CAT_CONFIG?.vapidPublicKey;if(!vapid||!("serviceWorker" in navigator))return;const registration=await navigator.serviceWorker.ready;let subscription=await registration.pushManager.getSubscription();if(!subscription)subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:vapidBytes(vapid)});const json=subscription.toJSON();await ctx.state.client.from("push_subscriptions").upsert({user_id:ctx.state.profile.id,endpoint:subscription.endpoint,p256dh:json.keys.p256dh,auth_key:json.keys.auth,user_agent:navigator.userAgent,updated_at:new Date().toISOString()},{onConflict:"endpoint"});}
@@ -252,16 +293,17 @@
   function cacheTeacherData(){if(ctx.isDirector())return;try{localStorage.setItem("cat-offline-last",ctx.state.profile.username);localStorage.setItem(`cat-offline-v2:${ctx.state.profile.username}`,JSON.stringify({savedAt:Date.now(),profile:ctx.state.profile,data:ctx.state.data}));}catch{}}
   function loadOffline(username){try{const key=username||localStorage.getItem("cat-offline-last");return key?JSON.parse(localStorage.getItem(`cat-offline-v2:${key}`)):null;}catch{return null;}}
 
-  function renderSettings(){$("#settings-avatar").textContent=ctx.state.profile.full_name.charAt(0);$("#settings-name").textContent=ctx.state.profile.full_name;$("#settings-role").textContent=ctx.isDirector()?"Direction · accès complet":"Enseignant · accès personnel";}
+  function renderSettings(){const roles=ctx.state.profile.roles||[ctx.state.profile.role];$("#settings-avatar").textContent=ctx.state.profile.full_name.charAt(0);$("#settings-name").textContent=ctx.state.profile.full_name;$("#settings-role").innerHTML=`<span class="role-badges">${roles.map(role=>`<em>${h(roleNames[role]||role)}</em>`).join("")}</span>${ctx.state.profile.teacher_id?`<small>Enseignant lié : ${h(ctx.state.profile.teacher_id)}</small>`:""}`;}
   function exportStats(){const rows=[["Enseignant","Charge pédagogique","Créneaux physiques"],...ctx.state.data.teachers.map(t=>[t.id,t.hours,t.physicalSlots])];const blob=new Blob(["\ufeff"+rows.map(r=>r.join(";")).join("\r\n")],{type:"text/csv;charset=utf-8"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="CAT_statistiques_enseignants.csv";a.click();URL.revokeObjectURL(a.href);}
 
   function render(context){ctx=context;renderFocus();renderDashboardAlerts();renderNotificationCounts();renderOperations();renderChanges();renderAnnouncements();renderAssistant();renderStats();renderAccounts();renderAudit();renderSettings();cacheTeacherData();startRealtime();}
+  function tick(context,periodToken){ctx=context;updateCountdown();if(periodToken!==lastPeriodToken){lastPeriodToken=periodToken;renderFocus();renderOperations();}}
   function bind(context){ctx=context;
     window.addEventListener("beforeinstallprompt",event=>{event.preventDefault();installPrompt=event;$("#install-app-button")?.classList.add("ready");});
     $("#install-app-button")?.addEventListener("click",installApp);$("#settings-install")?.addEventListener("click",installApp);$("#enable-notifications")?.addEventListener("click",enableNotifications);$("#notification-button")?.addEventListener("click",()=>ctx.setView("announcements"));
     $("#change-search")?.addEventListener("input",e=>fillChangeSources(e.target.value));$("#change-type")?.addEventListener("change",e=>{$$('[data-move-field]').forEach(x=>x.hidden=e.target.value==="cancel");renderChangeAnalysis(null);});$("#analyze-change")?.addEventListener("click",analyzeChange);$("#change-form")?.addEventListener("submit",submitChange);
-    $("#announcement-audience")?.addEventListener("change",e=>$("#announcement-teacher-wrap").hidden=e.target.value!=="teacher");$("#announcement-form")?.addEventListener("submit",publishAnnouncement);$("#assistant-form")?.addEventListener("submit",askAssistant);$("#account-search")?.addEventListener("input",e=>renderAccounts(e.target.value));$("#password-form")?.addEventListener("submit",changePassword);$("#export-calendar")?.addEventListener("click",exportCalendar);$("#export-stats")?.addEventListener("click",exportStats);
+    $("#announcement-audience")?.addEventListener("change",e=>$("#announcement-teacher-wrap").hidden=e.target.value!=="teacher");$("#announcement-form")?.addEventListener("submit",publishAnnouncement);$("#assistant-form")?.addEventListener("submit",askAssistant);$("#account-search")?.addEventListener("input",e=>renderAccounts(e.target.value));$("#account-role-filter")?.addEventListener("change",()=>renderAccounts());$("#account-status-filter")?.addEventListener("change",()=>renderAccounts());$("#password-form")?.addEventListener("submit",changePassword);$("#required-password-form")?.addEventListener("submit",changeRequiredPassword);$("#export-calendar")?.addEventListener("click",exportCalendar);$("#export-stats")?.addEventListener("click",exportStats);
   }
 
-  window.CATSmart={render,bind,scheduleEntries,loadOffline,kinshasaDate};
+  window.CATSmart={render,bind,tick,scheduleEntries,loadOffline,kinshasaDate};
 })();

@@ -61,11 +61,13 @@
   async function fetchPayload(client, requestedSchoolId = null) {
     const schoolId = requestedSchoolId || localStorage.getItem("horaire-pro-school") || null;
     const session = await client.auth.getSession();
-    const userId = session.data.session?.user?.id;
+    const sessionUser = session.data.session?.user;
+    const userId = sessionUser?.id;
     const cached = userId && schoolId ? await idbGet(platformKey(userId, schoolId)) : null;
     const tokenResult = await client.rpc("get_my_platform_sync_token", {p_school_id:schoolId});
     if (!tokenResult.error && cached?.syncToken && cached.syncToken === tokenResult.data) {
       cached.savedAt = Date.now();
+      if (sessionUser?.user_metadata && "must_change_password" in sessionUser.user_metadata) cached.payload.profile.must_change_password=Boolean(sessionUser.user_metadata.must_change_password);
       await idbPut(cached);
       localStorage.setItem(LAST_CONTEXT, JSON.stringify({userId:cached.userId,schoolId:cached.schoolId,savedAt:cached.savedAt}));
       return cached.payload;
@@ -76,6 +78,7 @@
       throw error;
     }
     const selected = data.platform.selected_school_id;
+    if (sessionUser?.user_metadata && "must_change_password" in sessionUser.user_metadata) data.profile.must_change_password=Boolean(sessionUser.user_metadata.must_change_password);
     localStorage.setItem("horaire-pro-school", selected);
     const record = {key:platformKey(data.profile.id, selected), userId:data.profile.id, schoolId:selected,
       revision:data.active_timetable?.revision || 0, syncToken:tokenResult.error?null:tokenResult.data, savedAt:Date.now(), payload:data};
@@ -244,7 +247,7 @@
     $("#membership-edit-name").textContent=member.full_name;$("#membership-edit-teacher").value=member.teacher_id||"";
     const assigned=new Set(member.roles||[]);
     $$('input[name="membership-edit-role"]').forEach((input)=>{input.checked=assigned.has(input.value);});
-    $("#membership-edit-status").textContent="";$("#membership-modal").hidden=false;
+    $("#membership-edit-status").textContent="";$("#membership-temporary-password").hidden=true;$("#membership-temporary-password-value").textContent="";$("#membership-modal").hidden=false;
   }
   async function saveMembership(event) {
     event.preventDefault();const status=$("#membership-edit-status");const roles=$$('input[name="membership-edit-role"]:checked').map((input)=>input.value);
@@ -260,6 +263,16 @@
     const {error}=await ctx.state.client.functions.invoke("manage-membership",{body:{action:"remove",school_id:ctx.state.platform.selected_school_id,user_id:$("#membership-edit-user").value,roles:[]}});
     status.textContent=error?error.message:"Personne retirée.";if(!error){$("#membership-modal").hidden=true;await ctx.reload({schoolId:ctx.state.platform.selected_school_id});}
   }
+
+  async function resetMemberPassword() {
+    if(!confirm("Créer un mot de passe temporaire pour ce compte ? L’ancien mot de passe cessera immédiatement de fonctionner."))return;
+    const status=$("#membership-edit-status"),button=$("#membership-reset-password");status.textContent="Réinitialisation sécurisée…";button.disabled=true;
+    const {data,error}=await ctx.state.client.functions.invoke("manage-membership",{body:{action:"reset_password",school_id:ctx.state.platform.selected_school_id,user_id:$("#membership-edit-user").value}});
+    button.disabled=false;
+    if(error||!data?.temporary_password){status.textContent=error?.message||"Réinitialisation impossible.";return;}
+    $("#membership-temporary-password-value").textContent=data.temporary_password;$("#membership-temporary-password").hidden=false;status.textContent="Mot de passe temporaire créé. Copiez-le maintenant : il ne sera plus affiché ensuite.";
+  }
+  async function copyTemporaryPassword(){const value=$("#membership-temporary-password-value").textContent;if(!value)return;await navigator.clipboard.writeText(value);ctx.showToast("Mot de passe temporaire copié");}
 
   function render(context) { ctx=context; if(!ctx.state.platform)return; renderSchoolControls();renderAgenda();renderHistory();renderRoles();setConnectivity(); }
   function bind(context) {
@@ -280,6 +293,8 @@
     $("#membership-edit-form")?.addEventListener("submit",saveMembership);
     $("#membership-edit-close")?.addEventListener("click",()=>{$("#membership-modal").hidden=true;});
     $("#membership-remove")?.addEventListener("click",removeMembership);
+    $("#membership-reset-password")?.addEventListener("click",resetMemberPassword);
+    $("#membership-copy-password")?.addEventListener("click",copyTemporaryPassword);
     window.addEventListener("online",()=>{setConnectivity();ctx.reload({schoolId:ctx.state.platform.selected_school_id,silent:true});});
     window.addEventListener("offline",setConnectivity);
   }

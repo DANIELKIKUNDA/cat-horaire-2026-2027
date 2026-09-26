@@ -11,13 +11,37 @@ const state = {
   timetables: [],
   activeTimetable: null,
   clockTimer: null,
+  liveToken: "",
+  workspaceMode: "",
   view: "dashboard",
   quickType: "class",
   selectedClass: localStorage.getItem("cat-selected-class") || "",
   selectedTeacher: localStorage.getItem("cat-selected-teacher") || "",
 };
 
-const isDirector = () => state.profile?.role === "director";
+const managerRoles = new Set(["direction", "admin", "scheduler", "viewer"]);
+const profileRoles = () => state.profile?.roles || (state.profile?.role === "director" ? ["direction"] : ["teacher"]);
+const canManageSchool = () => profileRoles().some((role) => managerRoles.has(role));
+const canManageAccounts = () => profileRoles().some((role) => ["direction", "admin"].includes(role));
+const isDualRole = () => canManageSchool() && profileRoles().includes("teacher") && Boolean(state.profile?.teacher_id);
+const workspaceStorageKey = () => `horaire-pro-workspace:${state.profile?.id || "guest"}:${state.platform?.selected_school_id || "legacy"}`;
+const workspaceMode = () => {
+  if (!canManageSchool()) return "teacher";
+  if (!isDualRole()) return "direction";
+  return state.workspaceMode === "teacher" ? "teacher" : "direction";
+};
+const isDirector = () => workspaceMode() === "direction";
+
+function setWorkspaceMode(mode, remember = true) {
+  if (!isDualRole()) mode = canManageSchool() ? "direction" : "teacher";
+  state.workspaceMode = mode === "teacher" ? "teacher" : "direction";
+  if (remember) localStorage.setItem(workspaceStorageKey(), state.workspaceMode);
+  if (state.data) {
+    renderPortal();
+    setView("dashboard", false);
+    showToast(state.workspaceMode === "teacher" ? "Espace enseignant activé" : "Espace Direction activé");
+  }
+}
 
 function loginEmail(value) {
   const input = value.trim().toLowerCase();
@@ -103,6 +127,7 @@ function populateSelect(select, items, valueKey = "id") {
 function setView(view, updateHash = true) {
   if (!titles[view]) view = "dashboard";
   if (!isDirector() && ["classes", "operations", "changes", "stats", "accounts", "documents"].includes(view)) view = "teachers";
+  if (view === "accounts" && !canManageAccounts()) view = "dashboard";
   state.view = view;
   $$(".view").forEach((element) => element.classList.toggle("active", element.id === `view-${view}`));
   $$(".main-nav a").forEach((link) => link.classList.toggle("active", link.dataset.view === view));
@@ -303,7 +328,7 @@ function showToast(message) {
 }
 
 function smartContext() {
-  return {state, isDirector, setView, renderTeacher, renderClass, showToast, esc, populateSelect, liveContext, scheduleEntries,
+  return {state, isDirector, canManageSchool, canManageAccounts, isDualRole, workspaceMode, setWorkspaceMode, setView, renderTeacher, renderClass, showToast, esc, populateSelect, liveContext, scheduleEntries,
     reload: loadPortal,
     displayTimetable: (data, timetable) => {
       state.data = data; state.activeTimetable = timetable; state.selectedClass = ""; state.selectedTeacher = state.profile?.teacher_id || "";
@@ -323,8 +348,11 @@ async function openDocument(path) {
 function applyRole() {
   const director = isDirector();
   $$('[data-director-only]').forEach((element) => { element.hidden = !director; });
+  $$('[data-account-manager-only]').forEach((element) => { element.hidden = !director || !canManageAccounts(); });
   $("#account-name").textContent = state.profile.full_name;
-  $("#account-role").textContent = director ? "Direction · accès complet" : "Enseignant · accès personnel";
+  $("#account-role").textContent = isDualRole()
+    ? (director ? "Direction + enseignant · espace Direction" : "Direction + enseignant · espace personnel")
+    : (director ? "Direction · accès complet" : "Enseignant · accès personnel");
   $("#account-avatar").textContent = state.profile.full_name.charAt(0).toUpperCase();
   titles.teachers = director ? "Horaire des enseignants" : "Mon horaire";
   $("#primary-schedule-button").dataset.go = director ? "classes" : "teachers";
@@ -335,6 +363,11 @@ function applyRole() {
     : "Votre semaine de cours certifiée par la direction.";
   $("#view-teachers .entity-picker").hidden = !director;
   $("#global-search").closest(".global-search").hidden = !director;
+  const switcher = $("#workspace-switcher");
+  if (switcher) {
+    switcher.hidden = !isDualRole();
+    $$('[data-workspace]', switcher).forEach((button) => button.classList.toggle("active", button.dataset.workspace === workspaceMode()));
+  }
   if (!director) {
     state.selectedTeacher = state.profile.teacher_id || state.selectedTeacher;
   }
@@ -382,6 +415,11 @@ function bindEvents() {
     localStorage.setItem("cat-theme", dark ? "dark" : "light");
     $("#theme-toggle span").textContent = dark ? "Mode clair" : "Mode sombre";
   });
+  $$('[data-workspace]').forEach((button) => button.addEventListener("click", () => setWorkspaceMode(button.dataset.workspace)));
+  $$('[data-workspace-choice]').forEach((button) => button.addEventListener("click", () => {
+    $("#workspace-modal").hidden = true;
+    setWorkspaceMode(button.dataset.workspaceChoice);
+  }));
   window.addEventListener("hashchange", () => setView(location.hash.slice(1) || "dashboard", false));
   window.CATSmart?.bind(smartContext());
   window.HoraireProPlatform?.bind(smartContext());
@@ -395,6 +433,8 @@ function assignPayload(payload) {
   state.academicYears = payload.academic_years || [];
   state.timetables = payload.timetables || [];
   state.activeTimetable = payload.active_timetable || null;
+  const savedMode = localStorage.getItem(workspaceStorageKey());
+  state.workspaceMode = isDualRole() ? (savedMode || "") : (canManageSchool() ? "direction" : "teacher");
 }
 
 function renderPortal() {
@@ -414,9 +454,23 @@ function renderPortal() {
   window.HoraireProPlatform?.render(smartContext());
   updateClock();
   clearInterval(state.clockTimer);
-  state.clockTimer = setInterval(() => { updateClock(); renderLive(); }, 60_000);
+  const updateLiveExperience = () => {
+    updateClock();
+    const live = liveContext();
+    const token = `${live.day}:${live.current?.id || "none"}:${live.next?.id || "none"}`;
+    if (token !== state.liveToken) {
+      state.liveToken = token;
+      renderLive();
+    }
+    window.CATSmart?.tick(smartContext(), token);
+  };
+  state.liveToken = "";
+  updateLiveExperience();
+  state.clockTimer = setInterval(updateLiveExperience, 1_000);
   showPortal();
   setView(location.hash.slice(1) || "dashboard", false);
+  if (isDualRole() && !localStorage.getItem(workspaceStorageKey())) $("#workspace-modal").hidden = false;
+  if (state.profile?.must_change_password) $("#password-required-modal").hidden = false;
 }
 
 async function loadPortal(options = {}) {
