@@ -11,7 +11,11 @@
   <link rel="stylesheet" href="assets/styles.css">
 </head>
 <body>
-  <section class="auth-screen" id="auth-screen">
+  <section class="loading-screen" id="loading-screen" aria-live="polite">
+    <div class="loading-brand"><img src="assets/horaire-pro-logo.svg" alt=""><strong>Horaire Pro</strong><span>Préparation de votre espace…</span><i></i><small>From Volcano Tech</small></div>
+  </section>
+
+  <section class="auth-screen" id="auth-screen" hidden>
     <div class="auth-visual">
       <span class="auth-school-mark"><img src="assets/horaire-pro-logo.svg" alt="Horaire Pro"></span>
       <div>
@@ -24,8 +28,9 @@
     </div>
     <div class="auth-panel">
       <form class="login-card" id="login-form">
+        <div class="login-brand-lockup"><img src="assets/horaire-pro-logo.svg" alt=""><div><strong>Horaire Pro</strong><small>Portail scolaire officiel</small></div></div>
         <span class="eyebrow">Espace personnel</span>
-        <h2>Se connecter</h2>
+        <h2>Bienvenue.</h2>
         <p>Utilisez l’identifiant et le mot de passe remis par la direction.</p>
         <label for="login-id">Identifiant</label>
         <input id="login-id" name="login" autocomplete="username" placeholder="prenom.nom" required>
@@ -46,7 +51,7 @@
     <aside class="sidebar" id="sidebar">
       <a class="brand" href="#dashboard" aria-label="Accueil">
         <span class="brand-mark" aria-hidden="true"><img src="assets/horaire-pro-logo.svg" alt=""></span>
-        <span><strong>Horaire Pro</strong><small>Multi-écoles · PWA sécurisée</small></span>
+        <span><strong>Horaire Pro</strong><small id="brand-context">Portail scolaire</small></span>
       </a>
 
       <label class="school-switcher" id="school-switcher-wrap" hidden>
@@ -85,6 +90,7 @@
         <small class="volcano-signature">From Volcano Tech</small>
       </div>
     </aside>
+    <button class="sidebar-backdrop" id="sidebar-backdrop" type="button" aria-label="Fermer le menu" hidden></button>
 
     <main class="main-content">
       <header class="topbar">
@@ -263,7 +269,7 @@
 
         <section class="view" id="view-teachers">
           <div class="section-intro">
-            <div><span class="eyebrow">30 enseignants</span><h2>Horaire par enseignant</h2><p>Retrouvez les cours, regroupements et créneaux physiques de chaque professeur.</p></div>
+            <div><span class="eyebrow" id="teacher-context-label">Équipe enseignante</span><h2>Horaire par enseignant</h2><p>Retrouvez les cours, regroupements et créneaux physiques de chaque professeur.</p></div>
             <div class="entity-picker"><label for="teacher-select">Enseignant</label><select id="teacher-select"></select></div>
           </div>
           <div id="teacher-summary" class="summary-row"></div>

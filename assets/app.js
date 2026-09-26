@@ -52,6 +52,7 @@ function loginEmail(value) {
 }
 
 function showLogin(message = "", success = false) {
+  $("#loading-screen").hidden = true;
   $("#app-shell").hidden = true;
   $("#auth-screen").hidden = false;
   const status = $("#login-status");
@@ -60,8 +61,17 @@ function showLogin(message = "", success = false) {
 }
 
 function showPortal() {
+  $("#loading-screen").hidden = true;
   $("#auth-screen").hidden = true;
   $("#app-shell").hidden = false;
+}
+
+function setSidebarOpen(open) {
+  const sidebar=$("#sidebar"),backdrop=$("#sidebar-backdrop");
+  sidebar.classList.toggle("open",Boolean(open));
+  backdrop.hidden=!open;
+  document.body.classList.toggle("menu-open",Boolean(open));
+  $("#menu-button")?.setAttribute("aria-expanded",String(Boolean(open)));
 }
 
 const titles = {
@@ -139,7 +149,7 @@ function setView(view, updateHash = true) {
   $$(".main-nav a").forEach((link) => link.classList.toggle("active", link.dataset.view === view));
   $$("#mobile-bottom-nav [data-mobile-go]").forEach((button) => button.classList.toggle("active", button.dataset.mobileGo === view));
   $("#page-title").textContent = titles[view];
-  $("#sidebar").classList.remove("open");
+  setSidebarOpen(false);
   if (updateHash && location.hash !== `#${view}`) history.pushState(null, "", `#${view}`);
   window.scrollTo({top: 0, behavior: "smooth"});
 }
@@ -360,7 +370,7 @@ function renderMobileNav() {
   else items=[["dashboard","⌂","Accueil"],["classes","▦","Classes"],["operations","◉","En direct"],["announcements","◈","Annonces"],["menu","☰","Plus"]];
   host.innerHTML=items.map(([view,icon,label])=>`<button type="button" ${view==="menu"?'data-mobile-menu':`data-mobile-go="${view}"`} class="${state.view===view?"active":""}"><i>${icon}</i><span>${label}</span>${view==="announcements"?'<b id="mobile-announcement-badge" hidden>0</b>':""}</button>`).join("");
   $$('[data-mobile-go]',host).forEach(button=>button.addEventListener("click",()=>setView(button.dataset.mobileGo)));
-  $('[data-mobile-menu]',host)?.addEventListener("click",()=>$("#sidebar").classList.add("open"));
+  $('[data-mobile-menu]',host)?.addEventListener("click",()=>setSidebarOpen(true));
 }
 
 function applyRole() {
@@ -382,6 +392,7 @@ function applyRole() {
   titles.teachers = director ? "Horaire des enseignants" : "Mon horaire";
   titles.assistant = director ? "Assistant de l’école" : "Mon assistant horaire";
   $("#teacher-nav-label").textContent = director ? "Horaire des enseignants" : "Mon horaire";
+  $("#teacher-context-label").textContent = director ? `${state.data.teachers.length} enseignants` : "Espace enseignant";
   $("#primary-schedule-button").dataset.go = director ? "classes" : "teachers";
   $("#primary-schedule-button").textContent = director ? "Voir les horaires" : "Voir mon horaire";
   $("#view-teachers .section-intro h2").textContent = director ? "Horaire des enseignants" : "Mon horaire personnel";
@@ -406,7 +417,9 @@ function bindEvents() {
     event.preventDefault(); setView(link.dataset.view);
   }));
   $$('[data-go]').forEach((button) => button.addEventListener("click", () => setView(button.dataset.go)));
-  $("#menu-button").addEventListener("click", () => $("#sidebar").classList.toggle("open"));
+  $("#menu-button").addEventListener("click", () => setSidebarOpen(!$("#sidebar").classList.contains("open")));
+  $("#sidebar-backdrop").addEventListener("click",()=>setSidebarOpen(false));
+  document.addEventListener("keydown",event=>{if(event.key==="Escape")setSidebarOpen(false);});
   $("#class-select").addEventListener("change", (event) => { state.selectedClass = event.target.value; renderClass(); });
   $("#teacher-select").addEventListener("change", (event) => { state.selectedTeacher = event.target.value; renderTeacher(); });
   $$('[data-quick-type]').forEach((button) => button.addEventListener("click", () => {
@@ -471,6 +484,7 @@ function renderPortal() {
   if (!isDirector() && personalTeacher) state.selectedTeacher = personalTeacher;
   if (!state.selectedTeacher || !state.data.teachers.some((item) => item.id === state.selectedTeacher)) state.selectedTeacher = personalTeacher || state.data.teachers[0]?.id || "";
   if ($("#side-solution")) $("#side-solution").textContent = state.activeTimetable?.title || state.data.meta?.solutionId || "Horaire publié";
+  $("#brand-context").textContent = state.school?.short_name || state.school?.name || "Portail scolaire";
   if (isDirector()) populateSelect($("#class-select"), state.data.classes);
   populateSelect($("#teacher-select"), state.data.teachers);
   if (isDirector()) populateSelect($("#announcement-teacher"), state.data.teachers);
