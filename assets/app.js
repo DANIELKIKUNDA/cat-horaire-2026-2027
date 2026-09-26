@@ -13,6 +13,7 @@ const state = {
   clockTimer: null,
   liveToken: "",
   workspaceMode: "",
+  mobileDay: "",
   view: "dashboard",
   quickType: "class",
   selectedClass: localStorage.getItem("cat-selected-class") || "",
@@ -23,6 +24,8 @@ const managerRoles = new Set(["direction", "admin", "scheduler", "viewer"]);
 const profileRoles = () => state.profile?.roles || (state.profile?.role === "director" ? ["direction"] : ["teacher"]);
 const canManageSchool = () => profileRoles().some((role) => managerRoles.has(role));
 const canManageAccounts = () => profileRoles().some((role) => ["direction", "admin"].includes(role));
+const canOperateSchool = () => isDirector() && profileRoles().some((role) => ["direction", "admin", "scheduler"].includes(role));
+const canManageSchoolContent = () => isDirector() && profileRoles().some((role) => ["direction", "admin"].includes(role));
 const isDualRole = () => canManageSchool() && profileRoles().includes("teacher") && Boolean(state.profile?.teacher_id);
 const workspaceStorageKey = () => `horaire-pro-workspace:${state.profile?.id || "guest"}:${state.platform?.selected_school_id || "legacy"}`;
 const workspaceMode = () => {
@@ -126,11 +129,15 @@ function populateSelect(select, items, valueKey = "id") {
 
 function setView(view, updateHash = true) {
   if (!titles[view]) view = "dashboard";
-  if (!isDirector() && ["classes", "operations", "changes", "stats", "accounts", "documents"].includes(view)) view = "teachers";
+  if (!isDirector() && ["classes", "operations", "changes", "stats", "accounts", "history", "documents"].includes(view)) view = "teachers";
+  if (view === "operations" && !canOperateSchool()) view = "dashboard";
+  if (view === "changes" && !canOperateSchool()) view = "dashboard";
+  if (["stats", "documents"].includes(view) && !canManageSchoolContent()) view = "dashboard";
   if (view === "accounts" && !canManageAccounts()) view = "dashboard";
   state.view = view;
   $$(".view").forEach((element) => element.classList.toggle("active", element.id === `view-${view}`));
   $$(".main-nav a").forEach((link) => link.classList.toggle("active", link.dataset.view === view));
+  $$("#mobile-bottom-nav [data-mobile-go]").forEach((button) => button.classList.toggle("active", button.dataset.mobileGo === view));
   $("#page-title").textContent = titles[view];
   $("#sidebar").classList.remove("open");
   if (updateHash && location.hash !== `#${view}`) history.pushState(null, "", `#${view}`);
@@ -218,6 +225,7 @@ function emptyHtml(day, period, type) {
 function renderSchedule(hostSelector, type, owner) {
   const data = state.data;
   const {day: liveDay, current} = liveContext();
+  if (!state.mobileDay || !data.days.includes(state.mobileDay)) state.mobileDay = data.days.includes(liveDay) ? liveDay : data.days[0];
   const periodIds = data.periods[data.days[0]].map((p) => p.id);
   const header = data.days.map((day) => `<th>${esc(day)}</th>`).join("");
   const rows = periodIds.map((period) => {
@@ -231,13 +239,11 @@ function renderSchedule(hostSelector, type, owner) {
     return `<tr><td class="period-cell"><strong>${period}</strong><small>Lun–Ven ${weekdayTime}<br>Sam. ${saturdayTime}</small></td>${cells}</tr>`;
   }).join("");
   const desktop = `<div class="schedule-scroll"><table class="schedule-table"><thead><tr><th>Période</th>${header}</tr></thead><tbody>${rows}</tbody></table></div>`;
-  const mobile = `<div class="schedule-mobile">${data.days.map((day) => `
-    <section class="mobile-day"><h4>${esc(day)}</h4>${data.periods[day].map((p) => {
-      const entries = scheduleEntries(type, owner, day, p.id);
-      const live = day === liveDay && current?.id === p.id;
-      return `<div class="mobile-period"><strong>${p.id}<br>${p.time}</strong><div>${entries.length ? entries.map((e) => lessonHtml(e,type,live)).join("") : emptyHtml(day,p.id,type)}</div></div>`;
-    }).join("")}</section>`).join("")}</div>`;
-  $(hostSelector).innerHTML = desktop + mobile;
+  const selectedDay=state.mobileDay;
+  const dayLessons=data.periods[selectedDay].map((period)=>({period,entries:scheduleEntries(type,owner,selectedDay,period.id)})).filter(item=>item.entries.length);
+  const mobile = `<div class="schedule-mobile"><div class="mobile-day-tabs">${data.days.map(day=>{const count=data.periods[day].filter(period=>scheduleEntries(type,owner,day,period.id).length).length;return `<button type="button" data-mobile-day="${esc(day)}" class="${day===selectedDay?"active":""}"><span>${esc(day.slice(0,3))}</span><small>${count}</small></button>`;}).join("")}</div><section class="mobile-agenda"><header><div><small>Programme du jour</small><h4>${esc(selectedDay)}</h4></div><span>${dayLessons.length} cours</span></header><div class="mobile-agenda-list">${dayLessons.length?dayLessons.map(({period,entries})=>{const live=selectedDay===liveDay&&current?.id===period.id;return `<article class="mobile-agenda-item ${live?"is-live":""}"><div class="mobile-agenda-time"><strong>${esc(period.time.split("-")[0])}</strong><small>${esc(period.time.split("-")[1])}</small></div><span class="mobile-agenda-line"></span><div class="mobile-agenda-lesson">${entries.map(entry=>lessonHtml(entry,type,live)).join("")}<small>${esc(period.id)}</small></div></article>`;}).join(""):`<div class="mobile-agenda-empty"><span>☀</span><strong>Aucun cours</strong><p>Votre programme est libre pour cette journée.</p></div>`}</div></section></div>`;
+  const host=$(hostSelector);host.innerHTML = desktop + mobile;
+  $$('[data-mobile-day]',host).forEach(button=>button.addEventListener("click",()=>{state.mobileDay=button.dataset.mobileDay;renderSchedule(hostSelector,type,owner);}));
 }
 
 function renderClass() {
@@ -328,7 +334,7 @@ function showToast(message) {
 }
 
 function smartContext() {
-  return {state, isDirector, canManageSchool, canManageAccounts, isDualRole, workspaceMode, setWorkspaceMode, setView, renderTeacher, renderClass, showToast, esc, populateSelect, liveContext, scheduleEntries,
+  return {state, isDirector, canManageSchool, canManageAccounts, canOperateSchool, canManageSchoolContent, isDualRole, workspaceMode, setWorkspaceMode, setView, renderTeacher, renderClass, showToast, esc, populateSelect, liveContext, scheduleEntries,
     reload: loadPortal,
     displayTimetable: (data, timetable) => {
       state.data = data; state.activeTimetable = timetable; state.selectedClass = ""; state.selectedTeacher = state.profile?.teacher_id || "";
@@ -345,9 +351,28 @@ async function openDocument(path) {
   window.open(data.signedUrl, "_blank", "noopener");
 }
 
+function renderMobileNav() {
+  const host=$("#mobile-bottom-nav");if(!host)return;
+  const roles=profileRoles();let items;
+  if(!isDirector()) items=[["dashboard","⌂","Accueil"],["teachers","▤","Mon horaire"],["assistant","✦","Assistant"],["announcements","◈","Annonces"],["settings","◎","Compte"]];
+  else if(roles.includes("viewer")&&!roles.some(role=>["direction","admin","scheduler"].includes(role))) items=[["dashboard","⌂","Accueil"],["classes","▦","Classes"],["teachers","♙","Profs"],["announcements","◈","Annonces"],["settings","◎","Compte"]];
+  else if(roles.includes("scheduler")&&!roles.some(role=>["direction","admin"].includes(role))) items=[["dashboard","⌂","Accueil"],["classes","▦","Classes"],["changes","⇄","Modifier"],["announcements","◈","Annonces"],["menu","☰","Plus"]];
+  else items=[["dashboard","⌂","Accueil"],["classes","▦","Classes"],["operations","◉","En direct"],["announcements","◈","Annonces"],["menu","☰","Plus"]];
+  host.innerHTML=items.map(([view,icon,label])=>`<button type="button" ${view==="menu"?'data-mobile-menu':`data-mobile-go="${view}"`} class="${state.view===view?"active":""}"><i>${icon}</i><span>${label}</span>${view==="announcements"?'<b id="mobile-announcement-badge" hidden>0</b>':""}</button>`).join("");
+  $$('[data-mobile-go]',host).forEach(button=>button.addEventListener("click",()=>setView(button.dataset.mobileGo)));
+  $('[data-mobile-menu]',host)?.addEventListener("click",()=>$("#sidebar").classList.add("open"));
+}
+
 function applyRole() {
   const director = isDirector();
+  document.body.dataset.workspace = director ? "direction" : "teacher";
+  document.body.dataset.primaryRole = profileRoles().includes("viewer") && !profileRoles().some(role => ["direction","admin","scheduler"].includes(role)) ? "viewer" : (profileRoles().includes("scheduler") && !profileRoles().some(role => ["direction","admin"].includes(role)) ? "scheduler" : (director ? "management" : "teacher"));
   $$('[data-director-only]').forEach((element) => { element.hidden = !director; });
+  $$('[data-full-schedule]').forEach((element) => { element.hidden = !director; });
+  $$('[data-operations]').forEach((element) => { element.hidden = !canOperateSchool(); });
+  $$('[data-scheduler]').forEach((element) => { element.hidden = !canOperateSchool(); });
+  $$('[data-management]').forEach((element) => { element.hidden = !canManageSchoolContent(); });
+  $$('[data-history]').forEach((element) => { element.hidden = !director; });
   $$('[data-account-manager-only]').forEach((element) => { element.hidden = !director || !canManageAccounts(); });
   $("#account-name").textContent = state.profile.full_name;
   $("#account-role").textContent = isDualRole()
@@ -355,6 +380,8 @@ function applyRole() {
     : (director ? "Direction · accès complet" : "Enseignant · accès personnel");
   $("#account-avatar").textContent = state.profile.full_name.charAt(0).toUpperCase();
   titles.teachers = director ? "Horaire des enseignants" : "Mon horaire";
+  titles.assistant = director ? "Assistant de l’école" : "Mon assistant horaire";
+  $("#teacher-nav-label").textContent = director ? "Horaire des enseignants" : "Mon horaire";
   $("#primary-schedule-button").dataset.go = director ? "classes" : "teachers";
   $("#primary-schedule-button").textContent = director ? "Voir les horaires" : "Voir mon horaire";
   $("#view-teachers .section-intro h2").textContent = director ? "Horaire des enseignants" : "Mon horaire personnel";
@@ -371,6 +398,7 @@ function applyRole() {
   if (!director) {
     state.selectedTeacher = state.profile.teacher_id || state.selectedTeacher;
   }
+  renderMobileNav();
 }
 
 function bindEvents() {
@@ -442,7 +470,7 @@ function renderPortal() {
   const personalTeacher = state.profile?.teacher_id;
   if (!isDirector() && personalTeacher) state.selectedTeacher = personalTeacher;
   if (!state.selectedTeacher || !state.data.teachers.some((item) => item.id === state.selectedTeacher)) state.selectedTeacher = personalTeacher || state.data.teachers[0]?.id || "";
-  $("#side-solution").textContent = state.activeTimetable?.title || state.data.meta?.solutionId || "Horaire publié";
+  if ($("#side-solution")) $("#side-solution").textContent = state.activeTimetable?.title || state.data.meta?.solutionId || "Horaire publié";
   if (isDirector()) populateSelect($("#class-select"), state.data.classes);
   populateSelect($("#teacher-select"), state.data.teachers);
   if (isDirector()) populateSelect($("#announcement-teacher"), state.data.teachers);

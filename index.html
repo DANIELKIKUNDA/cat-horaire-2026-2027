@@ -61,24 +61,18 @@
 
       <nav class="main-nav" aria-label="Navigation principale">
         <a href="#dashboard" data-view="dashboard" class="active"><span>⌂</span> Tableau de bord</a>
-        <a href="#classes" data-view="classes" data-director-only><span>▦</span> Horaire des classes</a>
-        <a href="#teachers" data-view="teachers"><span>♙</span> Horaire des enseignants</a>
-        <a href="#operations" data-view="operations" data-director-only><span>◉</span> Centre en direct</a>
-        <a href="#changes" data-view="changes" data-director-only><span>⇄</span> Changements</a>
+        <a href="#classes" data-view="classes" data-full-schedule><span>▦</span> Horaire des classes</a>
+        <a href="#teachers" data-view="teachers"><span>♙</span> <b id="teacher-nav-label">Horaire des enseignants</b></a>
+        <a href="#operations" data-view="operations" data-operations><span>◉</span> Centre en direct</a>
+        <a href="#changes" data-view="changes" data-scheduler><span>⇄</span> Changements</a>
         <a href="#announcements" data-view="announcements"><span>◈</span> Annonces <b class="nav-badge" id="announcement-nav-badge" hidden>0</b></a>
-        <a href="#assistant" data-view="assistant"><span>✦</span> Assistant</a>
-        <a href="#stats" data-view="stats" data-director-only><span>▥</span> Statistiques</a>
+        <a href="#assistant" data-view="assistant"><span>✦</span> Assistant horaire</a>
+        <a href="#stats" data-view="stats" data-management><span>▥</span> Statistiques</a>
         <a href="#accounts" data-view="accounts" data-account-manager-only><span>◎</span> Comptes</a>
-        <a href="#history" data-view="history"><span>◴</span> Années et versions</a>
-        <a href="#documents" data-view="documents" data-director-only><span>▤</span> Documents officiels</a>
+        <a href="#history" data-view="history" data-history><span>◴</span> Années et versions</a>
+        <a href="#documents" data-view="documents" data-management><span>▤</span> Documents officiels</a>
         <a href="#settings" data-view="settings"><span>⚙</span> Paramètres</a>
       </nav>
-
-      <div class="sidebar-card">
-        <span class="eyebrow">Solution certifiée</span>
-        <strong id="side-solution">Chargement…</strong>
-        <span class="status-line"><i></i> Validateur indépendant PASS</span>
-      </div>
 
       <div class="sidebar-footer">
         <div class="account-card">
@@ -121,7 +115,7 @@
               <p>Consultez les cours par classe ou par enseignant, suivez la période en cours et téléchargez les documents certifiés.</p>
               <div class="hero-actions">
                 <button class="primary-button" id="primary-schedule-button" data-go="classes">Voir les horaires</button>
-                <button class="secondary-button" data-go="documents" data-director-only>Documents PDF</button>
+                <button class="secondary-button" data-go="documents" data-management>Documents PDF</button>
               </div>
             </div>
             <div class="hero-orbit" aria-hidden="true">
@@ -154,7 +148,7 @@
               <div id="live-content" class="live-content"></div>
             </article>
 
-            <article class="panel quick-panel" data-director-only>
+            <article class="panel quick-panel" data-full-schedule>
               <div class="panel-heading"><div><span class="eyebrow">Accès rapide</span><h3>Consulter un horaire</h3></div></div>
               <div class="segmented" role="tablist">
                 <button class="active" data-quick-type="class" type="button">Classe</button>
@@ -175,7 +169,7 @@
           </article>
         </section>
 
-        <section class="view" id="view-operations" data-director-only>
+        <section class="view" id="view-operations" data-operations>
           <div class="section-intro">
             <div><span class="eyebrow">Pilotage en temps réel</span><h2>Centre des opérations</h2><p>Visualisez les cours en cours, les enseignants disponibles et les changements du jour.</p></div>
             <span class="live-pill"><i></i> Données actualisées</span>
@@ -188,7 +182,7 @@
           <article class="panel timeline-panel"><div class="panel-heading"><div><span class="eyebrow">Aujourd’hui</span><h3>Chronologie des périodes</h3></div></div><div id="operations-timeline" class="operations-timeline"></div></article>
         </section>
 
-        <section class="view" id="view-changes" data-director-only>
+        <section class="view" id="view-changes" data-scheduler>
           <div class="section-intro">
             <div><span class="eyebrow">Moteur de contrôle</span><h2>Changements intelligents</h2><p>Déplacez ou annulez une séance datée avec vérification automatique des collisions.</p></div>
             <span class="smart-badge">✦ Vérification instantanée</span>
@@ -216,7 +210,7 @@
           <div class="section-intro">
             <div><span class="eyebrow">Communication scolaire</span><h2>Annonces et alertes</h2><p>Les informations qui vous concernent, avec confirmation de lecture.</p></div>
           </div>
-          <form class="panel announcement-composer" id="announcement-form" data-director-only>
+          <form class="panel announcement-composer" id="announcement-form" data-scheduler>
             <div class="panel-heading"><div><span class="eyebrow">Direction</span><h3>Publier une annonce</h3></div></div>
             <div class="form-grid three"><label>Titre<input id="announcement-title" maxlength="140" required></label><label>Priorité<select id="announcement-level"><option value="info">Information</option><option value="important">Important</option><option value="urgent">Urgent</option></select></label><label>Destinataires<select id="announcement-audience"><option value="all">Tout le personnel</option><option value="teachers">Enseignants</option><option value="direction">Direction</option><option value="teacher">Un enseignant</option></select></label></div>
             <label id="announcement-teacher-wrap" hidden>Enseignant<select id="announcement-teacher"></select></label>
@@ -228,14 +222,14 @@
 
         <section class="view" id="view-assistant">
           <div class="assistant-shell">
-            <div class="assistant-hero"><span class="assistant-mark">✦</span><span class="eyebrow">Horaire Pro Intelligence</span><h2>Que voulez-vous savoir ?</h2><p>Interrogez l’horaire en langage naturel. Les réponses respectent vos droits d’accès.</p></div>
-            <div id="assistant-messages" class="assistant-messages"><div class="assistant-message bot"><span>✦</span><p>Bonjour. Demandez par exemple : <strong>« Mon prochain cours »</strong> ou, pour la Direction, <strong>« Qui est libre mardi P5 ? »</strong></p></div></div>
+            <div class="assistant-hero"><span class="assistant-mark">✦</span><span class="eyebrow">Assistant contextuel</span><h2>Votre horaire répond.</h2><p>Cours actuel, prochaine séance, journée complète, disponibilités, annonces et changements publiés.</p></div>
+            <div id="assistant-messages" class="assistant-messages"><div class="assistant-message bot"><span>✦</span><p>Bonjour. Je lis directement votre horaire publié. Essayez <strong>« Mon programme aujourd’hui »</strong>, <strong>« Mon prochain cours »</strong> ou <strong>« Mes changements »</strong>.</p></div></div>
             <div class="assistant-suggestions" id="assistant-suggestions"></div>
             <form id="assistant-form" class="assistant-input"><input id="assistant-query" autocomplete="off" placeholder="Posez votre question sur l’horaire…"><button type="submit">Envoyer <span>→</span></button></form>
           </div>
         </section>
 
-        <section class="view" id="view-stats" data-director-only>
+        <section class="view" id="view-stats" data-management>
           <div class="section-intro"><div><span class="eyebrow">Analyse pédagogique</span><h2>Statistiques intelligentes</h2><p>Une lecture claire des charges, des journées et des regroupements.</p></div><button class="secondary-ink-button" id="export-stats" type="button">Exporter CSV</button></div>
           <div id="stats-kpis" class="stats-grid"></div>
           <div class="analytics-grid"><article class="panel"><div class="panel-heading"><div><span class="eyebrow">Enseignants</span><h3>Charges hebdomadaires</h3></div></div><div id="teacher-load-chart" class="bar-chart"></div></article><article class="panel"><div class="panel-heading"><div><span class="eyebrow">Semaine</span><h3>Activité par jour</h3></div></div><div id="day-load-chart" class="bar-chart"></div></article></div>
@@ -244,9 +238,9 @@
         <section class="view" id="view-accounts" data-account-manager-only>
           <div class="section-intro"><div><span class="eyebrow">Sécurité</span><h2>Comptes et accès</h2><p>Contrôlez les accès sans exposer les mots de passe.</p></div><span class="security-chip">● RLS actif</span></div>
           <div class="account-kpis" id="account-kpis"></div>
-          <form class="panel smart-form membership-form" id="membership-form"><div class="panel-heading"><div><span class="eyebrow">Nouvelle adhésion</span><h3>Inviter ou associer une personne</h3></div></div><div class="form-grid"><label>Adresse email<input id="membership-email" type="email" required></label><label>Nom complet<input id="membership-name" required></label><label>Référence enseignant<input id="membership-teacher-ref" placeholder="Facultatif"></label></div><fieldset class="role-checks"><legend>Rôles dans cette école</legend><label><input type="checkbox" name="membership-role" value="teacher"> Enseignant</label><label><input type="checkbox" name="membership-role" value="direction"> Direction</label><label><input type="checkbox" name="membership-role" value="admin"> Admin</label><label><input type="checkbox" name="membership-role" value="scheduler"> Planificateur</label><label><input type="checkbox" name="membership-role" value="viewer"> Lecteur</label></fieldset><div class="form-actions"><button class="primary-button" type="submit">Envoyer l’invitation</button><span id="membership-status"></span></div></form>
+          <form class="panel smart-form membership-form" id="membership-form"><div class="panel-heading"><div><span class="eyebrow">Nouvelle adhésion</span><h3>Inviter ou associer une personne</h3></div></div><div class="form-grid"><label>Adresse email<input id="membership-email" type="email" required></label><label>Nom complet<input id="membership-name" required></label><label>Référence enseignant<input id="membership-teacher-ref" placeholder="Obligatoire seulement pour un enseignant"></label></div><fieldset class="role-checks"><legend>Rôles dans cette école</legend><label><input type="checkbox" name="membership-role" value="teacher"> Enseignant — horaire personnel</label><label><input type="checkbox" name="membership-role" value="direction"> Direction — pilotage complet</label><label><input type="checkbox" name="membership-role" value="admin"> Admin — comptes et sécurité</label><label><input type="checkbox" name="membership-role" value="scheduler"> Planificateur — changements d’horaire</label><label><input type="checkbox" name="membership-role" value="viewer"> Consultation — horaires en lecture seule</label></fieldset><div class="form-actions"><button class="primary-button" type="submit">Envoyer l’invitation</button><span id="membership-status"></span></div></form>
           <form class="panel smart-form membership-form" id="school-form" data-system-admin-only hidden><div class="panel-heading"><div><span class="eyebrow">Plateforme</span><h3>Ajouter un établissement</h3></div></div><div class="form-grid"><label>Nom officiel<input id="school-name" required></label><label>Nom court<input id="school-short-name" maxlength="20" required></label><label>Adresse<input id="school-address"></label><label>Première année scolaire<input id="school-year-label" placeholder="2027-2028"></label><label>Début<input id="school-year-start" type="date"></label><label>Fin<input id="school-year-end" type="date"></label></div><div class="form-actions"><button class="primary-button" type="submit">Créer l’établissement</button><span id="school-form-status"></span></div></form>
-          <article class="panel"><div class="account-toolbar"><input id="account-search" type="search" placeholder="Rechercher un compte…"><select id="account-role-filter" aria-label="Filtrer par rôle"><option value="">Tous les rôles</option><option value="teacher">Enseignants</option><option value="direction">Direction</option><option value="admin">Administrateurs</option><option value="scheduler">Planificateurs</option><option value="viewer">Lecteurs</option></select><select id="account-status-filter" aria-label="Filtrer par état"><option value="">Tous les états</option><option value="active">Actifs</option><option value="inactive">Suspendus</option></select><span id="account-summary"></span></div><div id="accounts-table" class="accounts-table"></div></article>
+          <article class="panel"><div class="account-toolbar"><input id="account-search" type="search" placeholder="Rechercher un compte…"><select id="account-role-filter" aria-label="Filtrer par rôle"><option value="">Tous les rôles</option><option value="teacher">Enseignants</option><option value="direction">Direction</option><option value="admin">Administrateurs</option><option value="scheduler">Planificateurs</option><option value="viewer">Consultation seule</option></select><select id="account-status-filter" aria-label="Filtrer par état"><option value="">Tous les états</option><option value="active">Actifs</option><option value="inactive">Suspendus</option></select><span id="account-summary"></span></div><div id="accounts-table" class="accounts-table"></div></article>
           <article class="panel audit-panel"><div class="panel-heading"><div><span class="eyebrow">Traçabilité</span><h3>Journal des actions</h3></div></div><div id="audit-list" class="activity-list"></div></article>
         </section>
 
@@ -258,7 +252,7 @@
           <form class="panel smart-form" id="clone-timetable-form" data-manager-only hidden><div class="panel-heading"><div><span class="eyebrow">Nouvelle base</span><h3>Dupliquer un horaire précédent</h3></div></div><div class="form-grid"><label>Horaire source<select id="clone-source"></select></label><label>Année cible<select id="clone-year"></select></label><label>Titre<input id="clone-title" value="Nouvel horaire" required></label></div><div class="form-actions"><button class="primary-button" type="submit">Créer la version indépendante</button><span id="clone-status"></span></div></form>
         </section>
 
-        <section class="view" id="view-classes" data-director-only>
+        <section class="view" id="view-classes" data-full-schedule>
           <div class="section-intro">
             <div><span class="eyebrow">34 classes certifiées</span><h2>Horaire par classe</h2><p>Choisissez une classe pour afficher sa semaine complète.</p></div>
             <div class="entity-picker"><label for="class-select">Classe</label><select id="class-select"></select></div>
@@ -277,7 +271,7 @@
           <div id="teacher-note"></div>
         </section>
 
-        <section class="view" id="view-documents" data-director-only>
+        <section class="view" id="view-documents" data-management>
           <div class="section-intro">
             <div><span class="eyebrow">Source unique certifiée</span><h2>Documents officiels</h2><p>Téléchargez les quatre éditions issues exactement de la solution publiée.</p></div>
             <div class="certification-badge"><span>✓</span><div><strong>Certification PASS</strong><small id="document-solution"></small></div></div>
@@ -300,9 +294,11 @@
     </main>
   </div>
 
+  <nav class="mobile-bottom-nav" id="mobile-bottom-nav" aria-label="Accès rapide mobile"></nav>
+
   <div class="school-modal" id="school-modal" hidden><div class="school-modal-card"><img src="assets/horaire-pro-logo.svg" alt=""><span class="eyebrow">Vos établissements</span><h2>Choisissez votre espace</h2><p>Vous pourrez changer d’école à tout moment sans vous reconnecter.</p><div id="school-modal-list" class="school-modal-list"></div></div></div>
   <div class="school-modal" id="workspace-modal" hidden><div class="school-modal-card workspace-choice-card"><span class="choice-mark">HP</span><span class="eyebrow">Double fonction détectée</span><h2>Comment voulez-vous travailler ?</h2><p>Votre compte possède les droits de direction et un horaire d’enseignant. Vous pourrez changer d’espace à tout moment.</p><div class="workspace-choices"><button type="button" data-workspace-choice="teacher"><span>♙</span><strong>Mon espace enseignant</strong><small>Mes cours, mon prochain créneau et mes annonces</small></button><button type="button" data-workspace-choice="direction"><span>◆</span><strong>Espace Direction</strong><small>École en direct, comptes, classes et documents</small></button></div></div></div>
-  <div class="school-modal" id="membership-modal" hidden><form class="school-modal-card smart-form" id="membership-edit-form"><span class="eyebrow">Adhésion à l’établissement</span><h2 id="membership-edit-name">Gérer un membre</h2><input id="membership-edit-user" type="hidden"><input id="membership-edit-id" type="hidden"><label>Référence enseignant<input id="membership-edit-teacher"></label><fieldset class="role-checks"><legend>Rôles autorisés</legend><label><input type="checkbox" name="membership-edit-role" value="teacher"> Enseignant</label><label><input type="checkbox" name="membership-edit-role" value="direction"> Direction</label><label><input type="checkbox" name="membership-edit-role" value="admin"> Admin</label><label><input type="checkbox" name="membership-edit-role" value="scheduler"> Planificateur</label><label><input type="checkbox" name="membership-edit-role" value="viewer"> Lecteur</label></fieldset><div class="credential-reset"><div><strong>Accès au compte</strong><small>Crée un mot de passe temporaire à usage unique. L’utilisateur devra le remplacer à sa prochaine connexion.</small></div><button class="secondary-ink-button" id="membership-reset-password" type="button">Réinitialiser le mot de passe</button></div><div class="one-time-secret" id="membership-temporary-password" hidden><span>Mot de passe temporaire — affiché une seule fois</span><div><code id="membership-temporary-password-value"></code><button type="button" id="membership-copy-password">Copier</button></div></div><div class="form-actions membership-edit-actions"><button class="secondary-ink-button danger" id="membership-remove" type="button">Retirer de l’école</button><button class="secondary-ink-button" id="membership-edit-close" type="button">Fermer</button><button class="primary-button" type="submit">Enregistrer</button></div><div id="membership-edit-status" class="login-status"></div></form></div>
+  <div class="school-modal" id="membership-modal" hidden><form class="school-modal-card smart-form" id="membership-edit-form"><span class="eyebrow">Adhésion à l’établissement</span><h2 id="membership-edit-name">Gérer un membre</h2><input id="membership-edit-user" type="hidden"><input id="membership-edit-id" type="hidden"><label>Référence enseignant<input id="membership-edit-teacher"></label><fieldset class="role-checks"><legend>Rôles autorisés</legend><label><input type="checkbox" name="membership-edit-role" value="teacher"> Enseignant</label><label><input type="checkbox" name="membership-edit-role" value="direction"> Direction</label><label><input type="checkbox" name="membership-edit-role" value="admin"> Admin</label><label><input type="checkbox" name="membership-edit-role" value="scheduler"> Planificateur</label><label><input type="checkbox" name="membership-edit-role" value="viewer"> Consultation seule</label></fieldset><div class="credential-reset"><div><strong>Accès au compte</strong><small>Crée un mot de passe temporaire à usage unique. L’utilisateur devra le remplacer à sa prochaine connexion.</small></div><button class="secondary-ink-button" id="membership-reset-password" type="button">Réinitialiser le mot de passe</button></div><div class="one-time-secret" id="membership-temporary-password" hidden><span>Mot de passe temporaire — affiché une seule fois</span><div><code id="membership-temporary-password-value"></code><button type="button" id="membership-copy-password">Copier</button></div></div><div class="form-actions membership-edit-actions"><button class="secondary-ink-button danger" id="membership-remove" type="button">Retirer de l’école</button><button class="secondary-ink-button" id="membership-edit-close" type="button">Fermer</button><button class="primary-button" type="submit">Enregistrer</button></div><div id="membership-edit-status" class="login-status"></div></form></div>
   <div class="school-modal" id="password-required-modal" hidden><form class="school-modal-card smart-form" id="required-password-form"><span class="choice-mark">✓</span><span class="eyebrow">Sécurité du compte</span><h2>Créez votre mot de passe personnel</h2><p>Le mot de passe temporaire a ouvert votre session. Choisissez maintenant un mot de passe personnel d’au moins 10 caractères.</p><label>Nouveau mot de passe<input id="required-new-password" type="password" minlength="10" autocomplete="new-password" required></label><label>Confirmer le mot de passe<input id="required-confirm-password" type="password" minlength="10" autocomplete="new-password" required></label><button class="primary-button" type="submit">Sécuriser mon compte</button><div id="required-password-status" class="login-status"></div></form></div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>

@@ -125,7 +125,7 @@
 
   function renderNotificationCounts() {
     const reads=readIds(); const count=(features().announcements||[]).filter(a=>!reads.has(a.id)).length;
-    for (const id of ["#notification-count","#announcement-nav-badge"]) { const el=$(id); if(el){el.textContent=count;el.hidden=!count;} }
+    for (const id of ["#notification-count","#announcement-nav-badge","#mobile-announcement-badge"]) { const el=$(id); if(el){el.textContent=count;el.hidden=!count;} }
   }
 
   function renderOperations() {
@@ -221,20 +221,38 @@
   }
 
   function assistantAnswer(query) {
-    const q=normalize(query); const day=DAYS.find(d=>q.includes(normalize(d))); const period=PERIODS.find(p=>q.includes(p.toLowerCase()));
+    const q=normalize(query); const live=ctx.liveContext();
+    let day=DAYS.find(d=>q.includes(normalize(d)));
+    if(q.includes("aujourd"))day=live.day;
+    if(q.includes("demain")){const index=DAYS.indexOf(live.day);day=DAYS[(index+1)%DAYS.length];}
+    const period=PERIODS.find(p=>q.includes(p.toLowerCase()));
     const teacher=ctx.state.data.teachers.find(t=>q.includes(normalize(t.id)) || normalize(t.id).split(" ").some(part=>part.length>4&&q.includes(part)));
     const klass=ctx.state.data.classes.find(c=>q.includes(normalize(c.id)));
-    if(q.includes("prochain") || q.includes("maintenant")) {
-      const live=ctx.liveContext(); const owner=ctx.isDirector()?(teacher?.id||ctx.state.selectedTeacher):ctx.state.profile.teacher_id;
-      if(!owner)return "Précisez le nom de l’enseignant.";
-      const periods=ctx.state.data.periods[live.day]||[]; const minute=Number(live.now.hour)*60+Number(live.now.minute);
-      for(const p of periods){const [hh,mm]=p.time.split("-")[0].split(":").map(Number);const entries=scheduleEntries("teacher",owner,live.day,p.id);if(entries.length&&(q.includes("maintenant")?live.current?.id===p.id:hh*60+mm>minute))return `${owner} : ${entries[0].course}, ${live.day} ${p.id} (${p.time}), avec ${entries[0].classes.join(", ")}.`;}
-      return `Aucun autre cours trouvé aujourd’hui pour ${owner}.`;
+    const personal=ctx.state.profile.teacher_id;
+    const owner=teacher?.id||personal||ctx.state.selectedTeacher;
+    const dayAgenda=(type,id,targetDay)=>{const periods=ctx.state.data.periods[targetDay]||[];return periods.flatMap(p=>scheduleEntries(type,id,targetDay,p.id).map(entry=>({period:p,entry})));};
+    const describeAgenda=(type,id,targetDay)=>{const items=dayAgenda(type,id,targetDay);if(!items.length)return `Aucun cours prévu ${targetDay.toLowerCase()} pour ${id}.`;return `${targetDay} · ${items.length} cours\n${items.map(({period:p,entry})=>`${p.id} ${p.time} — ${entry.course} · ${type==="teacher"?entry.classes.join(", "):entry.teacher}`).join("\n")}`;};
+    if(/^(bonjour|salut|bonsoir|hello)|aide|que peux/.test(q))return ctx.isDirector()?"Je peux analyser l’école en direct : cours d’une classe, emplacement d’un enseignant, disponibilités, charges, changements publiés et programme d’une journée. Essayez « qui est libre mardi P5 ? » ou « programme de 3E Électricité jeudi ».":"Je connais votre horaire publié, les changements et les annonces. Demandez « mon programme aujourd’hui », « mon prochain cours », « quand suis-je libre mardi ? » ou « mes changements ».";
+    if(q.includes("annonce")){const unread=(features().announcements||[]).filter(a=>!readIds().has(a.id));return unread.length?`${unread.length} annonce${unread.length>1?"s":""} non lue${unread.length>1?"s":""}\n${unread.slice(0,5).map(a=>`• ${a.title}`).join("\n")}`:"Vous n’avez aucune annonce non lue.";}
+    if(q.includes("changement")||q.includes("modification")){const targetDate=q.includes("aujourd")?kinshasaDate():(day&&DAYS.includes(day)?currentWeekDate(day):null);const items=activeChanges().filter(c=>!targetDate||c.effective_date===targetDate);return items.length?`${items.length} changement${items.length>1?"s":""} publié${items.length>1?"s":""}\n${items.slice(0,6).map(c=>`• ${c.course} · ${c.teacher_id} · ${c.original_day} ${c.original_period}${c.change_type==="move"?` → ${c.new_day} ${c.new_period}`:" · annulé"}`).join("\n")}`:"Aucun changement publié pour cette période.";}
+    if(q.includes("maintenant")||q.includes("en cours")){
+      if(!owner)return "Indiquez le nom de l’enseignant à rechercher.";
+      const entries=live.current?scheduleEntries("teacher",owner,live.day,live.current.id):[];
+      return entries.length?`En ce moment, ${owner} assure ${entries.map(e=>e.course).join(" et ")} avec ${entries.flatMap(e=>e.classes).join(", ")} · ${live.current.id}, ${live.current.time}.`:`${owner} n’a pas cours en ce moment.${live.next?` La prochaine période de l’école est ${live.next.id} à ${live.next.time.split("-")[0]}.`:""}`;
+    }
+    if(q.includes("prochain")) {
+      if(!owner)return "Indiquez le nom de l’enseignant à rechercher.";
+      const start=Math.max(0,DAYS.indexOf(live.day)),minute=Number(live.now.hour)*60+Number(live.now.minute);
+      for(let offset=0;offset<DAYS.length;offset++){const targetDay=DAYS[(start+offset)%DAYS.length];for(const item of dayAgenda("teacher",owner,targetDay)){const [hh,mm]=item.period.time.split("-")[0].split(":").map(Number);if(offset>0||hh*60+mm>minute)return `Prochain cours : ${item.entry.course}\n${targetDay} ${item.period.id} · ${item.period.time}\nClasse${item.entry.classes.length>1?"s":""} : ${item.entry.classes.join(", ")}.`;}}
+      return `Aucun prochain cours trouvé pour ${owner}.`;
     }
     if(q.includes("libre") && day && period && ctx.isDirector()) {
       const free=ctx.state.data.teachers.filter(t=>scheduleEntries("teacher",t.id,day,period).length===0).map(t=>t.id);
       return `${free.length} enseignant${free.length>1?"s":""} libre${free.length>1?"s":""} ${day} ${period} : ${free.join(", ") || "aucun"}.`;
     }
+    if(q.includes("libre")&&day&&owner){const free=(ctx.state.data.periods[day]||[]).filter(p=>scheduleEntries("teacher",owner,day,p.id).length===0);return free.length?`${owner} est libre ${day.toLowerCase()} pendant : ${free.map(p=>`${p.id} (${p.time})`).join(", ")}.`:`${owner} n’a aucune période libre ${day.toLowerCase()}.`;}
+    if((q.includes("horaire")||q.includes("programme")||q.includes("cours")||q.includes("journee"))&&day){if(klass&&ctx.isDirector())return describeAgenda("class",klass.id,day);if(owner)return describeAgenda("teacher",owner,day);}
+    if((q.includes("combien")||q.includes("nombre"))&&owner){const target=day||live.day;const items=dayAgenda("teacher",owner,target);return `${owner} a ${items.length} cours ${target.toLowerCase()}.`;}
     if((q.includes("ou ")||q.includes("où")||q.includes("horaire")||q.includes("cours")) && day && period) {
       if(teacher){const e=scheduleEntries("teacher",teacher.id,day,period);return e.length?`${teacher.id} enseigne ${e.map(x=>x.course).join(" et ")} à ${e.flatMap(x=>x.classes).join(", ")} le ${day} ${period}.`:`${teacher.id} est disponible le ${day} ${period}.`;}
       if(klass&&ctx.isDirector()){const e=scheduleEntries("class",klass.id,day,period);return e.length?`${klass.id} a ${e[0].course} avec ${e[0].teacher} le ${day} ${period}.`:`${klass.id} est libre le ${day} ${period}.`;}
@@ -242,16 +260,16 @@
     if(q.includes("charge") && teacher) return `${teacher.id} assure ${teacher.hours} heures pédagogiques sur ${teacher.physicalSlots} créneaux physiques.`;
     const courseMatches=[]; for(const t of ctx.state.data.teachers){for(const [slot,entries] of Object.entries(ctx.state.data.teacherSchedule[t.id]||{})){for(const e of entries){if(normalize(e.course).includes(q)&&!courseMatches.some(x=>x.assignmentId===e.assignmentId&&x.slot===slot))courseMatches.push({...e,slot});}}}
     if(courseMatches.length)return courseMatches.slice(0,6).map(e=>`${e.course} · ${e.teacher} · ${e.classes.join(", ")} · ${e.slot.replace(":"," ")}`).join("\n");
-    return "Je n’ai pas compris entièrement. Essayez « mon prochain cours », « qui est libre mardi P5 ? » ou « où est Yves jeudi P3 ? »";
+    return ctx.isDirector()?"Je peux répondre si vous précisez une classe, un enseignant, un jour ou une période. Exemple : « programme de 3E Électricité jeudi ».":"Je n’ai pas reconnu la demande. Essayez « mon programme aujourd’hui », « mon prochain cours », « quand suis-je libre mardi ? » ou « mes annonces ».";
   }
   function addAssistantMessage(role,text){const host=$("#assistant-messages");const article=document.createElement("div");article.className=`assistant-message ${role}`;article.innerHTML=`<span>${role==="bot"?"✦":"Vous"}</span><p>${h(text).replaceAll("\n","<br>")}</p>`;host.appendChild(article);host.scrollTop=host.scrollHeight;}
   function askAssistant(event){event.preventDefault();const input=$("#assistant-query");const query=input.value.trim();if(!query)return;addAssistantMessage("user",query);input.value="";setTimeout(()=>addAssistantMessage("bot",assistantAnswer(query)),220);}
-  function renderAssistant(){const suggestions=ctx.isDirector()?["Qui est libre mardi P5 ?","Où est Yves jeudi P3 ?","Charge de Daniel Kikunda","Cours de Français"]:["Mon prochain cours","Mon cours maintenant","Mon horaire lundi","Cours de Français"];$("#assistant-suggestions").innerHTML=suggestions.map(x=>`<button type="button">${h(x)}</button>`).join("");$$('button',$("#assistant-suggestions")).forEach(b=>b.addEventListener("click",()=>{$("#assistant-query").value=b.textContent;$("#assistant-form").requestSubmit();}));}
+  function renderAssistant(){const suggestions=ctx.isDirector()?["Qui est libre mardi P5 ?","Programme de 3E Électricité jeudi","Où est Yves jeudi P3 ?","Changements aujourd’hui"]:["Mon programme aujourd’hui","Mon prochain cours","Quand suis-je libre mardi ?","Mes annonces","Mes changements"];$("#assistant-suggestions").innerHTML=suggestions.map(x=>`<button type="button">${h(x)}</button>`).join("");$$('button',$("#assistant-suggestions")).forEach(b=>b.addEventListener("click",()=>{$("#assistant-query").value=b.textContent;$("#assistant-form").requestSubmit();}));}
 
   function barRows(items,max){const ceiling=Math.max(1,max||0);return items.map(({label,value,meta})=>`<div class="bar-row"><div><strong>${h(label)}</strong><small>${h(meta||`${value} h`)}</small></div><i><span style="width:${Math.max(3,value/ceiling*100)}%"></span></i><b>${value}</b></div>`).join("");}
   function renderStats(){if(!ctx.isDirector())return;const teachers=[...ctx.state.data.teachers].sort((a,b)=>b.hours-a.hours);const avg=teachers.length?(teachers.reduce((s,t)=>s+t.hours,0)/teachers.length).toFixed(1):"0.0";const grouped=new Set((features().cells||[]).filter(c=>c.class_ids.length>1).map(c=>c.assignment_id)).size;$("#stats-kpis").innerHTML=[["♙",avg,"Charge moyenne"],["▲",teachers[0]?.hours||0,"Charge maximale"],["◫",grouped,"Cours groupés"],["✓",ctx.state.data.meta.classCount,"Classes suivies"]].map(([i,v,l])=>`<article class="stat-card"><span class="stat-icon">${i}</span><div><strong>${v}</strong><small>${l}</small></div></article>`).join("");$("#teacher-load-chart").innerHTML=teachers.length?barRows(teachers.map(t=>({label:t.id,value:t.hours})),Math.max(...teachers.map(t=>t.hours))):`<div class="empty-state">Aucun enseignant dans cet horaire.</div>`;const days=DAYS.map(day=>({label:day,value:new Set((features().cells||[]).filter(c=>c.day===day).map(c=>`${c.assignment_id}|${c.period}`)).size,meta:"séances physiques"}));$("#day-load-chart").innerHTML=barRows(days,Math.max(...days.map(d=>d.value)));}
 
-  const roleNames={teacher:"Enseignant",direction:"Direction",admin:"Admin",scheduler:"Planificateur",viewer:"Lecteur"};
+  const roleNames={teacher:"Enseignant",direction:"Direction",admin:"Admin",scheduler:"Planificateur",viewer:"Consultation"};
   function renderAccounts(filter=$("#account-search")?.value||""){
     if(!ctx.isDirector()||!ctx.canManageAccounts())return;
     const all=features().profiles||[],q=normalize(filter),role=$("#account-role-filter")?.value||"",status=$("#account-status-filter")?.value||"";

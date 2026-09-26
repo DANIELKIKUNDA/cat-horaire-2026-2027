@@ -1,8 +1,8 @@
-const CACHE = "horaire-pro-shell-v5";
+const CACHE = "horaire-pro-shell-v6";
 const CORE = [
   "./", "index.html", "assets/styles.css", "assets/supabase.min.js", "assets/platform.js", "assets/smart.js", "assets/app.js",
-  "assets/horaire-pro-logo.svg", "assets/favicon.svg", "assets/icon-192.png", "assets/icon-512.png",
-  "assets/icon-maskable-512.png", "config.js", "manifest.webmanifest"
+  "assets/horaire-pro-logo.svg", "assets/favicon.svg", "assets/icon-pro-192.png", "assets/icon-pro-512.png",
+  "assets/icon-pro-maskable-512.png", "config.js", "manifest.webmanifest"
 ];
 
 self.addEventListener("install", (event) => event.waitUntil(
@@ -37,7 +37,7 @@ self.addEventListener("push", (event) => {
   let message = {title:"Horaire Pro",body:"Une nouvelle information est disponible.",url:"./#announcements"};
   try { message = {...message, ...event.data.json()}; } catch {}
   event.waitUntil(self.registration.showNotification(message.title, {
-    body:message.body, icon:"assets/icon-192.png", badge:"assets/icon-192.png",
+    body:message.body, icon:"assets/icon-pro-192.png", badge:"assets/icon-pro-192.png",
     tag:message.tag || "horaire-pro-update", data:{url:message.url || "./"}
   }));
 });
