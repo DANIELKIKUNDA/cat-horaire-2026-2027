@@ -375,6 +375,8 @@ function renderMobileNav() {
 
 function applyRole() {
   const director = isDirector();
+  const position = state.profile.position_title?.trim();
+  const managementLabel = position || "Direction";
   document.body.dataset.workspace = director ? "direction" : "teacher";
   document.body.dataset.primaryRole = profileRoles().includes("viewer") && !profileRoles().some(role => ["direction","admin","scheduler"].includes(role)) ? "viewer" : (profileRoles().includes("scheduler") && !profileRoles().some(role => ["direction","admin"].includes(role)) ? "scheduler" : (director ? "management" : "teacher"));
   $$('[data-director-only]').forEach((element) => { element.hidden = !director; });
@@ -386,7 +388,7 @@ function applyRole() {
   $$('[data-account-manager-only]').forEach((element) => { element.hidden = !director || !canManageAccounts(); });
   $("#account-name").textContent = state.profile.full_name;
   $("#account-role").textContent = isDualRole()
-    ? (director ? "Direction + enseignant · espace Direction" : "Direction + enseignant · espace personnel")
+    ? (director ? `${managementLabel} + enseignant · espace ${managementLabel}` : `${managementLabel} + enseignant · espace personnel`)
     : (director ? "Direction · accès complet" : "Enseignant · accès personnel");
   $("#account-avatar").textContent = state.profile.full_name.charAt(0).toUpperCase();
   titles.teachers = director ? "Horaire des enseignants" : "Mon horaire";
@@ -404,8 +406,12 @@ function applyRole() {
   const switcher = $("#workspace-switcher");
   if (switcher) {
     switcher.hidden = !isDualRole();
+    const directionButton = $('[data-workspace="direction"]', switcher);
+    if (directionButton) directionButton.textContent = `◆ ${managementLabel}`;
     $$('[data-workspace]', switcher).forEach((button) => button.classList.toggle("active", button.dataset.workspace === workspaceMode()));
   }
+  const directionChoice = $("#workspace-direction-label");
+  if (directionChoice) directionChoice.textContent = `Espace ${managementLabel}`;
   if (!director) {
     state.selectedTeacher = state.profile.teacher_id || state.selectedTeacher;
   }

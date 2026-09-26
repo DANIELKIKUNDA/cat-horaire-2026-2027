@@ -172,7 +172,9 @@
   function renderRoles() {
     const labels={teacher:"Enseignant",direction:"Direction",admin:"Admin",scheduler:"Planificateur",viewer:"Lecteur"};
     const roleText=roles().map((role)=>labels[role]||role).join(" · ");
-    if(roleText){$("#account-role").textContent=roleText;$("#settings-role").textContent=roleText;}
+    const position=ctx.state.profile?.position_title?.trim();
+    const dual=roles().includes("teacher")&&roles().some((role)=>["direction","admin","scheduler","viewer"].includes(role))&&Boolean(ctx.state.profile?.teacher_id);
+    if(roleText&&!dual)$("#account-role").textContent=position?`${position} · ${roleText}`:roleText;
     $$('[data-manager-only]').forEach((node)=>{node.hidden=!canManage();});
     $$('[data-system-admin-only]').forEach((node)=>{node.hidden=!ctx.state.profile?.is_system_admin;});
   }
@@ -218,7 +220,7 @@
     const selected=$$('input[name="membership-role"]:checked').map((input)=>input.value);
     if(!selected.length){status.textContent="Sélectionnez au moins un rôle.";return;}
     status.textContent="Invitation…";
-    const {error}=await ctx.state.client.functions.invoke("manage-membership",{body:{action:"invite",school_id:ctx.state.platform.selected_school_id,email:$("#membership-email").value.trim(),full_name:$("#membership-name").value.trim(),teacher_ref:$("#membership-teacher-ref").value.trim()||null,roles:selected}});
+    const {error}=await ctx.state.client.functions.invoke("manage-membership",{body:{action:"invite",school_id:ctx.state.platform.selected_school_id,email:$("#membership-email").value.trim(),full_name:$("#membership-name").value.trim(),teacher_ref:$("#membership-teacher-ref").value.trim()||null,position_title:$("#membership-position").value.trim()||null,roles:selected}});
     status.textContent=error?error.message:"Invitation envoyée et adhésion créée.";if(!error){event.target.reset();await ctx.reload({schoolId:ctx.state.platform.selected_school_id});}
   }
   async function createAcademicYear(event) {
@@ -244,7 +246,7 @@
   function openMembership(userId) {
     const member=(ctx.state.data.features?.profiles||[]).find((item)=>item.id===userId);if(!member)return;
     $("#membership-edit-user").value=member.id;$("#membership-edit-id").value=member.membership_id||"";
-    $("#membership-edit-name").textContent=member.full_name;$("#membership-edit-teacher").value=member.teacher_id||"";
+    $("#membership-edit-name").textContent=member.full_name;$("#membership-edit-teacher").value=member.teacher_id||"";$("#membership-edit-position").value=member.position_title||"";
     const assigned=new Set(member.roles||[]);
     $$('input[name="membership-edit-role"]').forEach((input)=>{input.checked=assigned.has(input.value);});
     $("#membership-edit-status").textContent="";$("#membership-temporary-password").hidden=true;$("#membership-temporary-password-value").textContent="";$("#membership-modal").hidden=false;
@@ -254,7 +256,7 @@
     if(!roles.length){status.textContent="Sélectionnez au moins un rôle.";return;}
     status.textContent="Enregistrement…";
     const {error}=await ctx.state.client.functions.invoke("manage-membership",{body:{action:"update",school_id:ctx.state.platform.selected_school_id,
-      user_id:$("#membership-edit-user").value,teacher_ref:$("#membership-edit-teacher").value.trim()||null,roles,status:"active"}});
+      user_id:$("#membership-edit-user").value,teacher_ref:$("#membership-edit-teacher").value.trim()||null,position_title:$("#membership-edit-position").value.trim()||null,roles,status:"active"}});
     status.textContent=error?error.message:"Adhésion mise à jour.";if(!error){$("#membership-modal").hidden=true;await ctx.reload({schoolId:ctx.state.platform.selected_school_id});}
   }
   async function removeMembership() {
