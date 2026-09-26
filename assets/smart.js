@@ -129,7 +129,7 @@
   function fillChangeSources(query="") {
     const select=$("#change-source"); if(!select) return;
     const q=normalize(query); const cells=(features().cells||[]).filter(c=>!q||normalize(cellLabel(c)).includes(q));
-    select.innerHTML=cells.slice(0,500).map(c=>`<option value="${h(c.id)}">${h(cellLabel(c))}</option>`).join("");
+    select.innerHTML=cells.slice(0,500).map(c=>`<option value="${h(ctx.state.platform ? c.entry_id : c.id)}">${h(cellLabel(c))}</option>`).join("");
   }
   function renderChangeAnalysis(result) {
     lastAnalysis=result; const box=$("#change-analysis"); const publish=$("#publish-change");
@@ -139,28 +139,36 @@
     $$('[data-slot]',box).forEach(b=>b.addEventListener("click",()=>{const [d,p]=b.dataset.slot.split("|");$("#change-day").value=d;$("#change-period").value=p;analyzeChange();}));
   }
   async function analyzeChange() {
-    const type=$("#change-type").value; const {data,error}=await ctx.state.client.rpc("analyze_schedule_change",{
-      p_source_cell_id:$("#change-source").value,p_effective_date:$("#change-date").value,p_change_type:type,
-      p_new_day:type==="move"?$("#change-day").value:null,p_new_period:type==="move"?$("#change-period").value:null
-    });
+    const type=$("#change-type").value; const modern=Boolean(ctx.state.platform);
+    const params=modern?{
+      p_source_entry_id:$("#change-source").value,p_effective_date:$("#change-date").value,p_change_type:type,
+      p_new_day_of_week:type==="move"?DAYS.indexOf($("#change-day").value)+1:null,
+      p_new_period:type==="move"?$("#change-period").value:null,p_new_room:null
+    }:{p_source_cell_id:$("#change-source").value,p_effective_date:$("#change-date").value,p_change_type:type,
+      p_new_day:type==="move"?$("#change-day").value:null,p_new_period:type==="move"?$("#change-period").value:null};
+    const {data,error}=await ctx.state.client.rpc(modern?"analyze_timetable_change":"analyze_schedule_change",params);
     if(error){ctx.showToast("Analyse impossible");return;} renderChangeAnalysis(data);
   }
   async function submitChange(event) {
     event.preventDefault(); if(!lastAnalysis?.ok)return;
     const type=$("#change-type").value; const button=$("#publish-change");button.disabled=true;button.textContent="Publication…";
-    const {data,error}=await ctx.state.client.rpc("create_schedule_change",{
-      p_source_cell_id:$("#change-source").value,p_effective_date:$("#change-date").value,p_change_type:type,
-      p_new_day:type==="move"?$("#change-day").value:null,p_new_period:type==="move"?$("#change-period").value:null,p_reason:$("#change-reason").value
-    });
+    const modern=Boolean(ctx.state.platform);
+    const params=modern?{
+      p_source_entry_id:$("#change-source").value,p_effective_date:$("#change-date").value,p_change_type:type,
+      p_new_day_of_week:type==="move"?DAYS.indexOf($("#change-day").value)+1:null,
+      p_new_period:type==="move"?$("#change-period").value:null,p_new_room:null,p_reason:$("#change-reason").value
+    }:{p_source_cell_id:$("#change-source").value,p_effective_date:$("#change-date").value,p_change_type:type,
+      p_new_day:type==="move"?$("#change-day").value:null,p_new_period:type==="move"?$("#change-period").value:null,p_reason:$("#change-reason").value};
+    const {data,error}=await ctx.state.client.rpc(modern?"create_timetable_change":"create_schedule_change",params);
     button.textContent="Publier le changement";
     if(error||!data?.ok){ctx.showToast("Le changement n’a pas été publié");renderChangeAnalysis(data);return;}
     notifyServer("schedule_change",data.change).catch(()=>{});
-    ctx.showToast("Changement publié et notifié"); setTimeout(()=>location.reload(),650);
+    ctx.showToast("Changement publié et notifié"); setTimeout(()=>ctx.reload({schoolId:ctx.state.platform?.selected_school_id}),650);
   }
   async function cancelChange(id) {
     if(!confirm("Annuler ce changement publié ?"))return;
-    const {error}=await ctx.state.client.rpc("set_schedule_change_status",{p_id:id,p_status:"cancelled"});
-    if(error){ctx.showToast("Annulation impossible");return;} location.reload();
+    const {error}=await ctx.state.client.rpc(ctx.state.platform?"set_timetable_change_status":"set_schedule_change_status",{p_id:id,p_status:"cancelled"});
+    if(error){ctx.showToast("Annulation impossible");return;} await ctx.reload({schoolId:ctx.state.platform?.selected_school_id});
   }
   function renderChanges() {
     if(!ctx.isDirector())return;
@@ -185,11 +193,11 @@
   }
   async function publishAnnouncement(event) {
     event.preventDefault(); const audience=$("#announcement-audience").value; const specific=audience==="teacher";
-    const {data,error}=await ctx.state.client.rpc("publish_announcement",{
-      p_title:$("#announcement-title").value,p_body:$("#announcement-body").value,p_level:$("#announcement-level").value,
-      p_audience:specific?"teachers":audience,p_teacher_ids:specific?[$("#announcement-teacher").value]:[],p_expires_at:null
-    });
-    if(error){ctx.showToast("Publication impossible");return;} notifyServer("announcement",data).catch(()=>{});event.target.reset();ctx.showToast("Annonce publiée");setTimeout(()=>location.reload(),500);
+    const params={p_title:$("#announcement-title").value,p_body:$("#announcement-body").value,p_level:$("#announcement-level").value,
+      p_audience:specific?"teachers":audience,p_teacher_ids:specific?[$("#announcement-teacher").value]:[],p_expires_at:null};
+    if(ctx.state.platform){params.p_school_id=ctx.state.platform.selected_school_id;params.p_timetable_id=ctx.state.activeTimetable?.id||null;}
+    const {data,error}=await ctx.state.client.rpc(ctx.state.platform?"publish_school_announcement":"publish_announcement",params);
+    if(error){ctx.showToast("Publication impossible");return;} notifyServer("announcement",data).catch(()=>{});event.target.reset();ctx.showToast("Annonce publiée");setTimeout(()=>ctx.reload({schoolId:ctx.state.platform?.selected_school_id}),500);
   }
 
   function assistantAnswer(query) {
@@ -220,11 +228,14 @@
   function askAssistant(event){event.preventDefault();const input=$("#assistant-query");const query=input.value.trim();if(!query)return;addAssistantMessage("user",query);input.value="";setTimeout(()=>addAssistantMessage("bot",assistantAnswer(query)),220);}
   function renderAssistant(){const suggestions=ctx.isDirector()?["Qui est libre mardi P5 ?","Où est Yves jeudi P3 ?","Charge de Daniel Kikunda","Cours de Français"]:["Mon prochain cours","Mon cours maintenant","Mon horaire lundi","Cours de Français"];$("#assistant-suggestions").innerHTML=suggestions.map(x=>`<button type="button">${h(x)}</button>`).join("");$$('button',$("#assistant-suggestions")).forEach(b=>b.addEventListener("click",()=>{$("#assistant-query").value=b.textContent;$("#assistant-form").requestSubmit();}));}
 
-  function barRows(items,max){return items.map(({label,value,meta})=>`<div class="bar-row"><div><strong>${h(label)}</strong><small>${h(meta||`${value} h`)}</small></div><i><span style="width:${Math.max(3,value/max*100)}%"></span></i><b>${value}</b></div>`).join("");}
-  function renderStats(){if(!ctx.isDirector())return;const teachers=[...ctx.state.data.teachers].sort((a,b)=>b.hours-a.hours);const avg=(teachers.reduce((s,t)=>s+t.hours,0)/teachers.length).toFixed(1);const grouped=new Set((features().cells||[]).filter(c=>c.class_ids.length>1).map(c=>c.assignment_id)).size;$("#stats-kpis").innerHTML=[["♙",avg,"Charge moyenne"],["▲",teachers[0]?.hours||0,"Charge maximale"],["◫",grouped,"Cours groupés"],["✓",ctx.state.data.meta.classCount,"Classes suivies"]].map(([i,v,l])=>`<article class="stat-card"><span class="stat-icon">${i}</span><div><strong>${v}</strong><small>${l}</small></div></article>`).join("");$("#teacher-load-chart").innerHTML=barRows(teachers.map(t=>({label:t.id,value:t.hours})),Math.max(...teachers.map(t=>t.hours)));const days=DAYS.map(day=>({label:day,value:new Set((features().cells||[]).filter(c=>c.day===day).map(c=>`${c.assignment_id}|${c.period}`)).size,meta:"séances physiques"}));$("#day-load-chart").innerHTML=barRows(days,Math.max(...days.map(d=>d.value)));}
+  function barRows(items,max){const ceiling=Math.max(1,max||0);return items.map(({label,value,meta})=>`<div class="bar-row"><div><strong>${h(label)}</strong><small>${h(meta||`${value} h`)}</small></div><i><span style="width:${Math.max(3,value/ceiling*100)}%"></span></i><b>${value}</b></div>`).join("");}
+  function renderStats(){if(!ctx.isDirector())return;const teachers=[...ctx.state.data.teachers].sort((a,b)=>b.hours-a.hours);const avg=teachers.length?(teachers.reduce((s,t)=>s+t.hours,0)/teachers.length).toFixed(1):"0.0";const grouped=new Set((features().cells||[]).filter(c=>c.class_ids.length>1).map(c=>c.assignment_id)).size;$("#stats-kpis").innerHTML=[["♙",avg,"Charge moyenne"],["▲",teachers[0]?.hours||0,"Charge maximale"],["◫",grouped,"Cours groupés"],["✓",ctx.state.data.meta.classCount,"Classes suivies"]].map(([i,v,l])=>`<article class="stat-card"><span class="stat-icon">${i}</span><div><strong>${v}</strong><small>${l}</small></div></article>`).join("");$("#teacher-load-chart").innerHTML=teachers.length?barRows(teachers.map(t=>({label:t.id,value:t.hours})),Math.max(...teachers.map(t=>t.hours))):`<div class="empty-state">Aucun enseignant dans cet horaire.</div>`;const days=DAYS.map(day=>({label:day,value:new Set((features().cells||[]).filter(c=>c.day===day).map(c=>`${c.assignment_id}|${c.period}`)).size,meta:"séances physiques"}));$("#day-load-chart").innerHTML=barRows(days,Math.max(...days.map(d=>d.value)));}
 
-  function renderAccounts(filter=""){if(!ctx.isDirector())return;const q=normalize(filter);const profiles=(features().profiles||[]).filter(p=>!q||normalize(`${p.full_name} ${p.username} ${p.role}`).includes(q));$("#account-summary").textContent=`${profiles.filter(p=>p.is_active).length} actifs · ${profiles.filter(p=>!p.is_active).length} suspendus`;$("#accounts-table").innerHTML=`<div class="account-table-head"><span>Compte</span><span>Identifiant</span><span>Rôle</span><span>État</span><span>Action</span></div>${profiles.map(p=>`<div class="account-table-row"><span><i>${h(p.full_name.charAt(0))}</i><strong>${h(p.full_name)}</strong></span><code>${h(p.username)}</code><span>${p.role==="director"?"Direction":"Enseignant"}</span><b class="${p.is_active?"active":"suspended"}">${p.is_active?"Actif":"Suspendu"}</b><button data-profile="${p.id}" data-active="${p.is_active}">${p.is_active?"Suspendre":"Réactiver"}</button></div>`).join("")}`;$$('[data-profile]',$("#accounts-table")).forEach(b=>b.addEventListener("click",()=>toggleAccount(b.dataset.profile,b.dataset.active!=="true")));}
-  async function toggleAccount(id,active){const {error}=await ctx.state.client.rpc("set_profile_active",{p_profile_id:id,p_active:active});if(error){ctx.showToast(error.message);return;}location.reload();}
+  function renderAccounts(filter=""){if(!ctx.isDirector())return;const q=normalize(filter);const profiles=(features().profiles||[]).filter(p=>!q||normalize(`${p.full_name} ${p.username} ${(p.roles||[p.role]).join(" ")}`).includes(q));$("#account-summary").textContent=`${profiles.filter(p=>p.is_active).length} actifs · ${profiles.filter(p=>!p.is_active).length} suspendus`;$("#accounts-table").innerHTML=`<div class="account-table-head"><span>Compte</span><span>Identifiant</span><span>Rôles</span><span>État</span><span>Actions</span></div>${profiles.map(p=>`<div class="account-table-row"><span><i>${h(p.full_name.charAt(0))}</i><strong>${h(p.full_name)}</strong></span><code>${h(p.username)}</code><span>${h((p.roles||[p.role]).join(" · "))}</span><b class="${p.is_active?"active":"suspended"}">${p.is_active?"Actif":"Suspendu"}</b><span class="account-actions"><button data-profile="${p.id}" data-membership="${p.membership_id||""}" data-roles="${h((p.roles||[p.role]).join(","))}" data-teacher="${h(p.teacher_id||"")}" data-active="${p.is_active}">${p.is_active?"Suspendre":"Réactiver"}</button>${ctx.state.platform?`<button data-edit-profile="${p.id}">Gérer</button>`:""}</span></div>`).join("")}`;$$('[data-profile]',$("#accounts-table")).forEach(b=>b.addEventListener("click",()=>toggleAccount(b.dataset,b.dataset.active!=="true")));$$('[data-edit-profile]',$("#accounts-table")).forEach(b=>b.addEventListener("click",()=>window.HoraireProPlatform?.openMembership(b.dataset.editProfile)));}
+  async function toggleAccount(profile,active){const modern=Boolean(ctx.state.platform&&profile.membership);const {error}=modern
+    ?await ctx.state.client.rpc("set_membership_state",{p_membership_id:profile.membership,p_status:active?"active":"disabled",p_roles:profile.roles.split(",").filter(Boolean),p_teacher_ref:profile.teacher||null})
+    :await ctx.state.client.rpc("set_profile_active",{p_profile_id:profile.profile,p_active:active});
+    if(error){ctx.showToast(error.message);return;}await ctx.reload({schoolId:ctx.state.platform?.selected_school_id});}
   function renderAudit(){if(!ctx.isDirector())return;const list=$("#audit-list");const items=features().audit||[];list.innerHTML=items.length?items.map(x=>`<article class="activity-item"><span class="activity-icon">✓</span><div><strong>${h(x.actor)} · ${h(x.event_type)}</strong><p>${h(x.entity_type)}</p><small>${new Date(x.created_at).toLocaleString("fr-FR")}</small></div></article>`).join(""):`<div class="empty-state">Le journal se remplira avec les actions de la Direction.</div>`;}
 
   function icsEscape(value){return String(value).replaceAll("\\","\\\\").replaceAll(",","\\,").replaceAll(";","\\;").replaceAll("\n","\\n");}
@@ -234,9 +245,9 @@
   function vapidBytes(value){const padding="=".repeat((4-value.length%4)%4);const raw=atob((value+padding).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));}
   async function subscribePush(){const vapid=window.CAT_CONFIG?.vapidPublicKey;if(!vapid||!("serviceWorker" in navigator))return;const registration=await navigator.serviceWorker.ready;let subscription=await registration.pushManager.getSubscription();if(!subscription)subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:vapidBytes(vapid)});const json=subscription.toJSON();await ctx.state.client.from("push_subscriptions").upsert({user_id:ctx.state.profile.id,endpoint:subscription.endpoint,p256dh:json.keys.p256dh,auth_key:json.keys.auth,user_agent:navigator.userAgent,updated_at:new Date().toISOString()},{onConflict:"endpoint"});}
   async function enableNotifications(){if(!("Notification" in window)){ctx.showToast("Notifications non prises en charge");return;}const permission=await Notification.requestPermission();if(permission==="granted")await subscribePush();ctx.showToast(permission==="granted"?"Notifications activées":"Autorisation refusée");}
-  async function notifyServer(kind,payload){const {error}=await ctx.state.client.functions.invoke("send-push",{body:{kind,payload}});if(error)console.warn("Push différé",error.message);}
+  async function notifyServer(kind,payload){const {error}=await ctx.state.client.functions.invoke("send-push",{body:{kind,payload,school_id:ctx.state.platform?.selected_school_id||null}});if(error)console.warn("Push différé",error.message);}
   function browserNotify(title,body){if("Notification" in window&&Notification.permission==="granted")new Notification(title,{body,icon:"assets/favicon.svg"});}
-  function startRealtime(){if(realtimeStarted)return;realtimeStarted=true;ctx.state.client.channel("cat-smart-private").on("postgres_changes",{event:"INSERT",schema:"public",table:"announcements"},payload=>{browserNotify("Nouvelle annonce CAT",payload.new.title||"Une annonce vient d’être publiée");setTimeout(()=>location.reload(),900);}).on("postgres_changes",{event:"INSERT",schema:"public",table:"schedule_changes"},payload=>{browserNotify("Horaire actualisé",`${payload.new.course||"Un cours"} a été modifié.`);setTimeout(()=>location.reload(),900);}).subscribe();}
+  function startRealtime(){if(realtimeStarted)return;realtimeStarted=true;const selected=ctx.state.platform?.selected_school_id;const scoped=selected?{filter:`school_id=eq.${selected}`}:{ };ctx.state.client.channel("horaire-pro-private").on("postgres_changes",{event:"INSERT",schema:"public",table:"announcements",...scoped},payload=>{browserNotify("Nouvelle annonce Horaire Pro",payload.new.title||"Une annonce vient d’être publiée");setTimeout(()=>ctx.reload({schoolId:selected,silent:true}),900);}).on("postgres_changes",{event:"INSERT",schema:"public",table:"schedule_changes",...scoped},payload=>{browserNotify("Horaire actualisé",`${payload.new.course||"Un cours"} a été modifié.`);setTimeout(()=>ctx.reload({schoolId:selected,silent:true}),900);}).subscribe();}
   async function installApp(){if(installPrompt){installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;return;}ctx.showToast("Utilisez le menu du navigateur puis « Installer l’application »");}
   function cacheTeacherData(){if(ctx.isDirector())return;try{localStorage.setItem("cat-offline-last",ctx.state.profile.username);localStorage.setItem(`cat-offline-v2:${ctx.state.profile.username}`,JSON.stringify({savedAt:Date.now(),profile:ctx.state.profile,data:ctx.state.data}));}catch{}}
   function loadOffline(username){try{const key=username||localStorage.getItem("cat-offline-last");return key?JSON.parse(localStorage.getItem(`cat-offline-v2:${key}`)):null;}catch{return null;}}

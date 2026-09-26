@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#082b4c">
-  <meta name="description" content="Portail officiel de consultation de l’horaire scolaire 2026-2027 du Collège des Aumôniers du Travail.">
-  <title>CAT Smart Horaire 2026-2027</title>
+  <meta name="theme-color" content="#0b3347">
+  <meta name="description" content="Horaire Pro, la plateforme sécurisée multi-écoles pour consulter et administrer les horaires scolaires.">
+  <title>Horaire Pro</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="assets/styles.css">
@@ -13,13 +13,14 @@
 <body>
   <section class="auth-screen" id="auth-screen">
     <div class="auth-visual">
-      <span class="auth-school-mark">CAT</span>
+      <span class="auth-school-mark"><img src="assets/horaire-pro-logo.svg" alt="Horaire Pro"></span>
       <div>
-        <span class="hero-kicker"><i></i> Portail sécurisé</span>
+        <span class="hero-kicker"><i></i> Horaire Pro sécurisé</span>
         <h1>Votre horaire,<br><em>partout avec vous.</em></h1>
         <p>Chaque enseignant consulte uniquement son propre horaire. La direction dispose de la vue complète certifiée.</p>
       </div>
-      <small>Collège des Aumôniers du Travail · 2026-2027</small>
+      <small>Une plateforme pour tous vos établissements</small>
+      <small class="volcano-signature">From Volcano Tech</small>
     </div>
     <div class="auth-panel">
       <form class="login-card" id="login-form">
@@ -35,7 +36,8 @@
         </div>
         <button class="primary-button wide login-button" type="submit">Ouvrir mon horaire <span>→</span></button>
         <div class="login-status" id="login-status" role="status" aria-live="polite"></div>
-        <small class="privacy-note">Connexion chiffrée · Accès personnel</small>
+        <small class="privacy-note">Connexion chiffrée · Session persistante · Accès personnel</small>
+        <small class="volcano-signature login-signature">From Volcano Tech</small>
       </form>
     </div>
   </section>
@@ -43,9 +45,14 @@
   <div class="app-shell" id="app-shell" hidden>
     <aside class="sidebar" id="sidebar">
       <a class="brand" href="#dashboard" aria-label="Accueil">
-        <span class="brand-mark" aria-hidden="true">CAT</span>
-        <span><strong>CAT Smart</strong><small>Horaire intelligent · 2026-2027</small></span>
+        <span class="brand-mark" aria-hidden="true"><img src="assets/horaire-pro-logo.svg" alt=""></span>
+        <span><strong>Horaire Pro</strong><small>Multi-écoles · PWA sécurisée</small></span>
       </a>
+
+      <label class="school-switcher" id="school-switcher-wrap" hidden>
+        <span>Établissement actif</span>
+        <select id="school-switcher" aria-label="Changer d’établissement"></select>
+      </label>
 
       <nav class="main-nav" aria-label="Navigation principale">
         <a href="#dashboard" data-view="dashboard" class="active"><span>⌂</span> Tableau de bord</a>
@@ -57,6 +64,7 @@
         <a href="#assistant" data-view="assistant"><span>✦</span> Assistant</a>
         <a href="#stats" data-view="stats" data-director-only><span>▥</span> Statistiques</a>
         <a href="#accounts" data-view="accounts" data-director-only><span>◎</span> Comptes</a>
+        <a href="#history" data-view="history"><span>◴</span> Années et versions</a>
         <a href="#documents" data-view="documents" data-director-only><span>▤</span> Documents officiels</a>
         <a href="#settings" data-view="settings"><span>⚙</span> Paramètres</a>
       </nav>
@@ -74,7 +82,8 @@
         </div>
         <button class="logout-button" id="logout-button" type="button">Se déconnecter</button>
         <button class="theme-button" id="theme-toggle" type="button" aria-label="Changer le thème">◐ <span>Mode sombre</span></button>
-        <small>Collège des Aumôniers du Travail</small>
+        <small id="sidebar-school-name">Établissement</small>
+        <small class="volcano-signature">From Volcano Tech</small>
       </div>
     </aside>
 
@@ -98,6 +107,7 @@
       </header>
 
       <div class="content-wrap">
+        <div class="connectivity-banner" id="connectivity-banner" hidden></div>
         <section class="view active" id="view-dashboard" aria-labelledby="page-title">
           <div class="hero-card">
             <div class="hero-copy">
@@ -116,6 +126,15 @@
           </div>
 
           <div id="smart-focus" class="smart-focus"></div>
+
+          <article class="panel platform-agenda" id="platform-agenda" hidden>
+            <div class="platform-agenda-head">
+              <div><span class="eyebrow">Vue personnelle multi-écoles</span><h3 id="agenda-date-title">Aujourd’hui</h3></div>
+              <div class="date-navigation"><button id="agenda-prev" type="button" aria-label="Jour précédent">←</button><button id="agenda-today" type="button">Aujourd’hui</button><button id="agenda-next" type="button" aria-label="Jour suivant">→</button><button id="agenda-week" type="button">Semaine</button></div>
+            </div>
+            <div class="agenda-filter"><label>École<select id="agenda-school-filter"><option value="all">Toutes les écoles</option></select></label><span id="agenda-sync-state"></span></div>
+            <div id="aggregate-agenda-list" class="aggregate-agenda-list"></div>
+          </article>
 
           <div class="stats-grid" id="stats-grid"></div>
 
@@ -204,7 +223,7 @@
 
         <section class="view" id="view-assistant">
           <div class="assistant-shell">
-            <div class="assistant-hero"><span class="assistant-mark">✦</span><span class="eyebrow">CAT Intelligence</span><h2>Que voulez-vous savoir ?</h2><p>Interrogez l’horaire en langage naturel. Les réponses respectent vos droits d’accès.</p></div>
+            <div class="assistant-hero"><span class="assistant-mark">✦</span><span class="eyebrow">Horaire Pro Intelligence</span><h2>Que voulez-vous savoir ?</h2><p>Interrogez l’horaire en langage naturel. Les réponses respectent vos droits d’accès.</p></div>
             <div id="assistant-messages" class="assistant-messages"><div class="assistant-message bot"><span>✦</span><p>Bonjour. Demandez par exemple : <strong>« Mon prochain cours »</strong> ou, pour la Direction, <strong>« Qui est libre mardi P5 ? »</strong></p></div></div>
             <div class="assistant-suggestions" id="assistant-suggestions"></div>
             <form id="assistant-form" class="assistant-input"><input id="assistant-query" autocomplete="off" placeholder="Posez votre question sur l’horaire…"><button type="submit">Envoyer <span>→</span></button></form>
@@ -219,8 +238,18 @@
 
         <section class="view" id="view-accounts" data-director-only>
           <div class="section-intro"><div><span class="eyebrow">Sécurité</span><h2>Comptes et accès</h2><p>Contrôlez les accès sans exposer les mots de passe.</p></div><span class="security-chip">● RLS actif</span></div>
+          <form class="panel smart-form membership-form" id="membership-form"><div class="panel-heading"><div><span class="eyebrow">Nouvelle adhésion</span><h3>Inviter ou associer une personne</h3></div></div><div class="form-grid"><label>Adresse email<input id="membership-email" type="email" required></label><label>Nom complet<input id="membership-name" required></label><label>Référence enseignant<input id="membership-teacher-ref" placeholder="Facultatif"></label></div><fieldset class="role-checks"><legend>Rôles dans cette école</legend><label><input type="checkbox" name="membership-role" value="teacher"> Enseignant</label><label><input type="checkbox" name="membership-role" value="direction"> Direction</label><label><input type="checkbox" name="membership-role" value="admin"> Admin</label><label><input type="checkbox" name="membership-role" value="scheduler"> Planificateur</label><label><input type="checkbox" name="membership-role" value="viewer"> Lecteur</label></fieldset><div class="form-actions"><button class="primary-button" type="submit">Envoyer l’invitation</button><span id="membership-status"></span></div></form>
+          <form class="panel smart-form membership-form" id="school-form" data-system-admin-only hidden><div class="panel-heading"><div><span class="eyebrow">Plateforme</span><h3>Ajouter un établissement</h3></div></div><div class="form-grid"><label>Nom officiel<input id="school-name" required></label><label>Nom court<input id="school-short-name" maxlength="20" required></label><label>Adresse<input id="school-address"></label><label>Première année scolaire<input id="school-year-label" placeholder="2027-2028"></label><label>Début<input id="school-year-start" type="date"></label><label>Fin<input id="school-year-end" type="date"></label></div><div class="form-actions"><button class="primary-button" type="submit">Créer l’établissement</button><span id="school-form-status"></span></div></form>
           <article class="panel"><div class="account-toolbar"><input id="account-search" type="search" placeholder="Rechercher un compte…"><span id="account-summary"></span></div><div id="accounts-table" class="accounts-table"></div></article>
           <article class="panel audit-panel"><div class="panel-heading"><div><span class="eyebrow">Traçabilité</span><h3>Journal des actions</h3></div></div><div id="audit-list" class="activity-list"></div></article>
+        </section>
+
+        <section class="view" id="view-history">
+          <div class="section-intro"><div><span class="eyebrow">Conservation intégrale</span><h2>Années scolaires et versions</h2><p>Consultez les horaires publiés, archivés ou en préparation sans écraser l’historique.</p></div></div>
+          <div id="year-tabs" class="year-tabs"></div>
+          <div id="timetable-history" class="history-grid"></div>
+          <form class="panel smart-form" id="academic-year-form" data-manager-only hidden><div class="panel-heading"><div><span class="eyebrow">Nouvelle période</span><h3>Créer une année scolaire</h3></div></div><div class="form-grid"><label>Libellé<input id="academic-year-label" placeholder="2027-2028" required></label><label>Début<input id="academic-year-start" type="date" required></label><label>Fin<input id="academic-year-end" type="date" required></label></div><label><input id="academic-year-current" type="checkbox"> Définir comme année actuelle</label><div class="form-actions"><button class="primary-button" type="submit">Créer l’année</button><span id="academic-year-status"></span></div></form>
+          <form class="panel smart-form" id="clone-timetable-form" data-manager-only hidden><div class="panel-heading"><div><span class="eyebrow">Nouvelle base</span><h3>Dupliquer un horaire précédent</h3></div></div><div class="form-grid"><label>Horaire source<select id="clone-source"></select></label><label>Année cible<select id="clone-year"></select></label><label>Titre<input id="clone-title" value="Nouvel horaire" required></label></div><div class="form-actions"><button class="primary-button" type="submit">Créer la version indépendante</button><span id="clone-status"></span></div></form>
         </section>
 
         <section class="view" id="view-classes" data-director-only>
@@ -265,9 +294,13 @@
     </main>
   </div>
 
+  <div class="school-modal" id="school-modal" hidden><div class="school-modal-card"><img src="assets/horaire-pro-logo.svg" alt=""><span class="eyebrow">Vos établissements</span><h2>Choisissez votre espace</h2><p>Vous pourrez changer d’école à tout moment sans vous reconnecter.</p><div id="school-modal-list" class="school-modal-list"></div></div></div>
+  <div class="school-modal" id="membership-modal" hidden><form class="school-modal-card smart-form" id="membership-edit-form"><span class="eyebrow">Adhésion à l’établissement</span><h2 id="membership-edit-name">Gérer un membre</h2><input id="membership-edit-user" type="hidden"><input id="membership-edit-id" type="hidden"><label>Référence enseignant<input id="membership-edit-teacher"></label><fieldset class="role-checks"><legend>Rôles autorisés</legend><label><input type="checkbox" name="membership-edit-role" value="teacher"> Enseignant</label><label><input type="checkbox" name="membership-edit-role" value="direction"> Direction</label><label><input type="checkbox" name="membership-edit-role" value="admin"> Admin</label><label><input type="checkbox" name="membership-edit-role" value="scheduler"> Planificateur</label><label><input type="checkbox" name="membership-edit-role" value="viewer"> Lecteur</label></fieldset><div class="form-actions membership-edit-actions"><button class="secondary-ink-button danger" id="membership-remove" type="button">Retirer de l’école</button><button class="secondary-ink-button" id="membership-edit-close" type="button">Fermer</button><button class="primary-button" type="submit">Enregistrer</button></div><div id="membership-edit-status" class="login-status"></div></form></div>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+  <script src="assets/supabase.min.js" defer></script>
   <script src="config.js" defer></script>
+  <script src="assets/platform.js" defer></script>
   <script src="assets/smart.js" defer></script>
   <script src="assets/app.js" defer></script>
 </body>

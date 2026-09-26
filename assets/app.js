@@ -5,6 +5,12 @@ const state = {
   data: null,
   profile: null,
   client: null,
+  platform: null,
+  school: null,
+  academicYears: [],
+  timetables: [],
+  activeTimetable: null,
+  clockTimer: null,
   view: "dashboard",
   quickType: "class",
   selectedClass: localStorage.getItem("cat-selected-class") || "",
@@ -41,6 +47,7 @@ const titles = {
   assistant: "Assistant CAT",
   stats: "Statistiques",
   accounts: "Comptes et accès",
+  history: "Années et versions",
   documents: "Documents officiels",
   settings: "Mon compte",
 };
@@ -224,7 +231,9 @@ function renderClass() {
 }
 
 function renderTeacher() {
-  const id = state.selectedTeacher || state.data.teachers[0].id;
+  const preferred = state.profile?.teacher_id && state.data.teachers.some((teacher) => teacher.id === state.profile.teacher_id)
+    ? state.profile.teacher_id : "";
+  const id = state.selectedTeacher || preferred || state.data.teachers[0].id;
   state.selectedTeacher = id;
   localStorage.setItem("cat-selected-teacher", id);
   $("#teacher-select").value = id;
@@ -294,7 +303,13 @@ function showToast(message) {
 }
 
 function smartContext() {
-  return {state, isDirector, setView, renderTeacher, renderClass, showToast, esc, populateSelect, liveContext, scheduleEntries, reload: loadPortal};
+  return {state, isDirector, setView, renderTeacher, renderClass, showToast, esc, populateSelect, liveContext, scheduleEntries,
+    reload: loadPortal,
+    displayTimetable: (data, timetable) => {
+      state.data = data; state.activeTimetable = timetable; state.selectedClass = ""; state.selectedTeacher = state.profile?.teacher_id || "";
+      renderPortal(); setView(isDirector() ? "classes" : "teachers"); showToast(`Version ouverte · ${timetable.title}`);
+    },
+  };
 }
 
 
@@ -311,14 +326,17 @@ function applyRole() {
   $("#account-name").textContent = state.profile.full_name;
   $("#account-role").textContent = director ? "Direction · accès complet" : "Enseignant · accès personnel";
   $("#account-avatar").textContent = state.profile.full_name.charAt(0).toUpperCase();
+  titles.teachers = director ? "Horaire des enseignants" : "Mon horaire";
+  $("#primary-schedule-button").dataset.go = director ? "classes" : "teachers";
+  $("#primary-schedule-button").textContent = director ? "Voir les horaires" : "Voir mon horaire";
+  $("#view-teachers .section-intro h2").textContent = director ? "Horaire des enseignants" : "Mon horaire personnel";
+  $("#view-teachers .section-intro p").textContent = director
+    ? "Consultez chaque service hebdomadaire publié."
+    : "Votre semaine de cours certifiée par la direction.";
+  $("#view-teachers .entity-picker").hidden = !director;
+  $("#global-search").closest(".global-search").hidden = !director;
   if (!director) {
-    titles.teachers = "Mon horaire";
-    $("#primary-schedule-button").dataset.go = "teachers";
-    $("#primary-schedule-button").textContent = "Voir mon horaire";
-    $("#view-teachers .section-intro h2").textContent = "Mon horaire personnel";
-    $("#view-teachers .section-intro p").textContent = "Votre semaine de cours certifiée par la direction.";
-    $("#view-teachers .entity-picker").hidden = true;
-    $("#global-search").closest(".global-search").hidden = true;
+    state.selectedTeacher = state.profile.teacher_id || state.selectedTeacher;
   }
 }
 
@@ -366,37 +384,60 @@ function bindEvents() {
   });
   window.addEventListener("hashchange", () => setView(location.hash.slice(1) || "dashboard", false));
   window.CATSmart?.bind(smartContext());
+  window.HoraireProPlatform?.bind(smartContext());
 }
 
-async function loadPortal() {
+function assignPayload(payload) {
+  state.data = payload.data;
+  state.profile = payload.profile;
+  state.platform = payload.platform || null;
+  state.school = payload.school || null;
+  state.academicYears = payload.academic_years || [];
+  state.timetables = payload.timetables || [];
+  state.activeTimetable = payload.active_timetable || null;
+}
+
+function renderPortal() {
+  if (isDirector() && (!state.selectedClass || !state.data.classes.some((item) => item.id === state.selectedClass))) state.selectedClass = state.data.classes[0]?.id || "";
+  const personalTeacher = state.profile?.teacher_id;
+  if (!isDirector() && personalTeacher) state.selectedTeacher = personalTeacher;
+  if (!state.selectedTeacher || !state.data.teachers.some((item) => item.id === state.selectedTeacher)) state.selectedTeacher = personalTeacher || state.data.teachers[0]?.id || "";
+  $("#side-solution").textContent = state.activeTimetable?.title || state.data.meta?.solutionId || "Horaire publié";
+  if (isDirector()) populateSelect($("#class-select"), state.data.classes);
+  populateSelect($("#teacher-select"), state.data.teachers);
+  if (isDirector()) populateSelect($("#announcement-teacher"), state.data.teachers);
+  applyRole();
+  renderStats(); renderLive(); renderDayStrip();
+  if (state.selectedTeacher) renderTeacher();
+  if (isDirector()) { renderQuickOptions(); renderClass(); renderDocuments(); }
+  window.CATSmart?.render(smartContext());
+  window.HoraireProPlatform?.render(smartContext());
+  updateClock();
+  clearInterval(state.clockTimer);
+  state.clockTimer = setInterval(() => { updateClock(); renderLive(); }, 60_000);
+  showPortal();
+  setView(location.hash.slice(1) || "dashboard", false);
+}
+
+async function loadPortal(options = {}) {
   try {
-    const {data: payload, error} = await state.client.rpc("get_my_portal_data");
-    if (error) throw error;
-    state.data = payload.data;
-    state.profile = payload.profile;
-    if (isDirector() && (!state.selectedClass || !state.data.classes.some((c) => c.id === state.selectedClass))) state.selectedClass = state.data.classes[0].id;
-    if (!state.selectedTeacher || !state.data.teachers.some((t) => t.id === state.selectedTeacher)) state.selectedTeacher = state.data.teachers[0].id;
-    $("#side-solution").textContent = state.data.meta.solutionId;
-    if (isDirector()) populateSelect($("#class-select"), state.data.classes);
-    populateSelect($("#teacher-select"), state.data.teachers);
-    if (isDirector()) populateSelect($("#announcement-teacher"), state.data.teachers);
-    applyRole();
-    renderStats(); renderLive(); renderDayStrip(); renderTeacher();
-    if (isDirector()) { renderQuickOptions(); renderClass(); renderDocuments(); }
-    window.CATSmart?.render(smartContext());
-    updateClock(); setInterval(() => { updateClock(); renderLive(); }, 60_000);
-    showPortal();
-    setView(location.hash.slice(1) || "dashboard", false);
+    let payload = await window.HoraireProPlatform?.fetchPayload(state.client, options.schoolId);
+    if (!payload) {
+      const legacy = await state.client.rpc("get_my_portal_data");
+      if (legacy.error) throw legacy.error;
+      payload = legacy.data;
+    }
+    assignPayload(payload);
+    renderPortal();
+    if (!options.silent) showToast(state.platform ? "Horaire synchronisé" : "Portail chargé");
   } catch (error) {
     console.error(error);
+    const platformOffline = await window.HoraireProPlatform?.loadOffline();
     const username = $("#login-id").value.trim().toLowerCase() || "";
-    const offline = window.CATSmart?.loadOffline(username);
-    if (offline) {
-      state.data = offline.data; state.profile = offline.profile;
-      populateSelect($("#teacher-select"), state.data.teachers); applyRole();
-      renderStats(); renderLive(); renderDayStrip(); renderTeacher(); window.CATSmart.render(smartContext());
-      showPortal(); setView("dashboard", false); showToast("Mode hors connexion · dernière synchronisation");
-    } else showLogin("Impossible de charger votre horaire. Contactez la direction.");
+    const legacyOffline = window.CATSmart?.loadOffline(username);
+    const payload = platformOffline?.payload || legacyOffline;
+    if (payload) { assignPayload(payload); renderPortal(); showToast("Mode hors connexion · dernière synchronisation"); }
+    else showLogin("Impossible de charger votre horaire. Contactez la direction.");
   }
 }
 
@@ -417,7 +458,9 @@ async function init() {
     $("#login-form button[type=submit]").disabled = true;
     return;
   }
-  state.client = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+  state.client = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey, {
+    auth: {persistSession:true, autoRefreshToken:true, detectSessionInUrl:true, storageKey:"horaire-pro-auth"},
+  });
   $("#login-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const button = event.submitter;

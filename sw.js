@@ -1,25 +1,47 @@
-const CACHE = "cat-smart-horaire-v3";
-const CORE = ["./", "index.html", "assets/styles.css", "assets/smart.js", "assets/app.js", "assets/favicon.svg", "config.js", "manifest.webmanifest"];
-self.addEventListener("install", (event) => event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(CORE)).then(() => self.skipWaiting())));
-self.addEventListener("activate", (event) => event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key)))).then(() => self.clients.claim())));
+const CACHE = "horaire-pro-shell-v4";
+const CORE = [
+  "./", "index.html", "assets/styles.css", "assets/supabase.min.js", "assets/platform.js", "assets/smart.js", "assets/app.js",
+  "assets/horaire-pro-logo.svg", "assets/favicon.svg", "assets/icon-192.png", "assets/icon-512.png",
+  "assets/icon-maskable-512.png", "config.js", "manifest.webmanifest"
+];
+
+self.addEventListener("install", (event) => event.waitUntil(
+  caches.open(CACHE).then((cache) => cache.addAll(CORE)).then(() => self.skipWaiting())
+));
+
+self.addEventListener("activate", (event) => event.waitUntil(
+  caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
+    .then(() => self.clients.claim())
+));
+
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (event.request.method !== "GET" || url.origin !== self.location.origin) return;
-  event.respondWith(fetch(event.request).then((response) => {
-    const copy = response.clone(); caches.open(CACHE).then((cache) => cache.put(event.request, copy)); return response;
-  }).catch(() => caches.match(event.request)));
-});
-self.addEventListener("push", (event) => {
-  let message = {title: "CAT Smart Horaire", body: "Une nouvelle information est disponible.", url: "./#announcements"};
-  try { message = {...message, ...event.data.json()}; } catch {}
-  event.waitUntil(self.registration.showNotification(message.title, {
-    body: message.body,
-    icon: "assets/favicon.svg",
-    badge: "assets/favicon.svg",
-    tag: message.tag || "cat-smart-update",
-    data: {url: message.url || "./"},
+  if (event.request.mode === "navigate") {
+    event.respondWith(fetch(event.request).then((response) => {
+      if (response.ok) caches.open(CACHE).then((cache) => cache.put("index.html", response.clone()));
+      return response;
+    }).catch(() => caches.match("index.html")));
+    return;
+  }
+  event.respondWith(caches.match(event.request).then((cached) => {
+    const refresh = fetch(event.request).then((response) => {
+      if (response.ok) caches.open(CACHE).then((cache) => cache.put(event.request, response.clone()));
+      return response;
+    }).catch(() => cached);
+    return cached || refresh;
   }));
 });
+
+self.addEventListener("push", (event) => {
+  let message = {title:"Horaire Pro",body:"Une nouvelle information est disponible.",url:"./#announcements"};
+  try { message = {...message, ...event.data.json()}; } catch {}
+  event.waitUntil(self.registration.showNotification(message.title, {
+    body:message.body, icon:"assets/icon-192.png", badge:"assets/icon-192.png",
+    tag:message.tag || "horaire-pro-update", data:{url:message.url || "./"}
+  }));
+});
+
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   event.waitUntil(clients.matchAll({type:"window",includeUncontrolled:true}).then((windows) => {
