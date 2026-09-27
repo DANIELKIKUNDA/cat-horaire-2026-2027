@@ -186,6 +186,7 @@ select:focus { border-color: var(--navy-700); }
 .day-pill strong, .day-pill span { display: block; }
 .day-pill strong { margin: 5px 0; font: 800 18px Manrope, sans-serif; }
 .day-pill span { color: var(--muted); font-size: 10px; }
+.day-pill small{display:block;min-height:13px;margin-top:6px;color:var(--navy-700);font-size:8px;font-weight:800;line-height:1.4}
 .day-pill.today { border-color: var(--gold); background: var(--gold-soft); color: var(--navy-900); }
 
 .section-intro { display: flex; align-items: flex-end; justify-content: space-between; gap: 28px; margin-bottom: 22px; min-width: 0; }

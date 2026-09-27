@@ -157,10 +157,11 @@ function setView(view, updateHash = true) {
 function renderStats() {
   const m = state.data.meta;
   if (!isDirector()) {
-    const teacher = state.data.teachers[0];
-    const occupied = Object.keys(state.data.teacherSchedule[teacher.id] || {}).length;
+    const teacherId = state.profile?.teacher_id || state.data.teachers[0]?.id;
+    const teacher = state.data.teachers.find((item) => item.id === teacherId) || state.data.teachers[0];
+    const occupied = state.data.days.reduce((total, day) => total + state.data.periods[day].filter((period) => scheduleEntries("teacher", teacher.id, day, period.id).length).length, 0);
     const today = liveContext().day;
-    const todayCount = Object.keys(state.data.teacherSchedule[teacher.id] || {}).filter((slot) => slot.startsWith(`${today}:`)).length;
+    const todayCount = state.data.periods[today]?.filter((period) => scheduleEntries("teacher", teacher.id, today, period.id).length).length || 0;
     const stats = [
       ["✓", `${teacher.hours} h`, "Charge pédagogique"],
       ["◷", occupied, "Créneaux de la semaine"],
@@ -204,11 +205,21 @@ function renderLive() {
 
 function renderDayStrip() {
   const {day: today} = liveContext();
-  $("#day-strip").innerHTML = state.data.days.map((day) => {
-    const count = state.data.periods[day].length;
-    return `<div class="day-pill ${day === today ? "today" : ""}"><span>${day === today ? "Aujourd’hui" : "Journée"}</span><strong>${esc(day.slice(0,3))}</strong><span>${count} périodes</span></div>`;
-  }).join("");
-  $("#week-range").textContent = "Lundi à samedi · 42 périodes";
+  if (!isDirector() && state.profile?.teacher_id) {
+    const teacherId=state.profile.teacher_id;
+    const overview=state.data.days.map((day)=>{
+      const slots=state.data.periods[day].filter((period)=>scheduleEntries("teacher",teacherId,day,period.id).length).map((period)=>period.id);
+      return {day,slots};
+    });
+    const total=overview.reduce((sum,item)=>sum+item.slots.length,0);
+    $("#day-strip").innerHTML=overview.map(({day,slots})=>`<div class="day-pill ${day===today?"today":""}"><span>${day===today?"Aujourd’hui":"Journée"}</span><strong>${esc(day.slice(0,3))}</strong><span>${slots.length} ${slots.length>1?"périodes":"période"}</span><small>${slots.length?esc(slots.join(" · ")):"Aucun cours"}</small></div>`).join("");
+    $("#week-range").textContent=`Lundi à samedi · ${total} périodes enseignées`;
+    return;
+  }
+  const overview=state.data.days.map((day)=>({day,count:state.data.periods[day].reduce((sum,period)=>sum+allPhysicalAt(day,period.id).length,0)}));
+  const total=overview.reduce((sum,item)=>sum+item.count,0);
+  $("#day-strip").innerHTML=overview.map(({day,count})=>`<div class="day-pill ${day===today?"today":""}"><span>${day===today?"Aujourd’hui":"Établissement"}</span><strong>${esc(day.slice(0,3))}</strong><span>${count} ${count>1?"séances":"séance"}</span><small>Programmées</small></div>`).join("");
+  $("#week-range").textContent=`Lundi à samedi · ${total} séances programmées`;
 }
 
 function scheduleEntries(type, owner, day, period) {
@@ -395,6 +406,8 @@ function applyRole() {
   titles.assistant = director ? "Assistant de l’école" : "Mon assistant horaire";
   $("#teacher-nav-label").textContent = director ? "Horaire des enseignants" : "Mon horaire";
   $("#teacher-context-label").textContent = director ? `${state.data.teachers.length} enseignants` : "Espace enseignant";
+  $("#view-dashboard .week-preview .eyebrow").textContent = director ? "Vue de l’établissement" : "Ma semaine";
+  $("#view-dashboard .week-preview h3").textContent = director ? "Activité hebdomadaire" : "Mes périodes réelles";
   $("#primary-schedule-button").dataset.go = director ? "classes" : "teachers";
   $("#primary-schedule-button").textContent = director ? "Voir les horaires" : "Voir mon horaire";
   $("#view-teachers .section-intro h2").textContent = director ? "Horaire des enseignants" : "Mon horaire personnel";
