@@ -387,7 +387,8 @@ function renderMobileNav() {
 function applyRole() {
   const director = isDirector();
   const position = state.profile.position_title?.trim();
-  const managementLabel = position || "Direction";
+  const roles = profileRoles();
+  const managementLabel = position || (roles.includes("admin") ? "Administration" : roles.includes("scheduler") ? "Planification" : roles.includes("viewer") ? "Consultation" : "Direction");
   document.body.dataset.workspace = director ? "direction" : "teacher";
   document.body.dataset.primaryRole = profileRoles().includes("viewer") && !profileRoles().some(role => ["direction","admin","scheduler"].includes(role)) ? "viewer" : (profileRoles().includes("scheduler") && !profileRoles().some(role => ["direction","admin"].includes(role)) ? "scheduler" : (director ? "management" : "teacher"));
   $$('[data-director-only]').forEach((element) => { element.hidden = !director; });
