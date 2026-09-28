@@ -1,6 +1,6 @@
-const CACHE = "horaire-pro-shell-v11";
+const CACHE = "horaire-pro-shell-v12";
 const CORE = [
-  "./", "index.html", "assets/styles.css", "assets/supabase.min.js", "assets/platform.js", "assets/smart.js", "assets/app.js",
+  "./", "index.html", "assets/styles.css?v=12", "assets/supabase.min.js", "assets/platform.js?v=12", "assets/smart.js?v=12", "assets/app.js?v=12",
   "assets/horaire-pro-logo.svg", "assets/favicon.svg", "assets/icon-pro-192.png", "assets/icon-pro-512.png",
   "assets/icon-pro-maskable-512.png", "config.js", "manifest-v2.webmanifest"
 ];

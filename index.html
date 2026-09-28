@@ -8,7 +8,7 @@
   <title>Horaire Pro</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="manifest-v2.webmanifest">
-  <link rel="stylesheet" href="assets/styles.css">
+  <link rel="stylesheet" href="assets/styles.css?v=12">
 </head>
 <body>
   <section class="loading-screen" id="loading-screen" aria-live="polite">
@@ -122,6 +122,10 @@
               <div class="hero-actions">
                 <button class="primary-button" id="primary-schedule-button" data-go="classes">Voir les horaires</button>
                 <button class="secondary-button" data-go="documents" data-management>Documents PDF</button>
+                <label class="hero-school-switcher" id="dashboard-school-switcher-wrap" hidden>
+                  <span>Établissement actif</span>
+                  <select id="dashboard-school-switcher" aria-label="Changer l’établissement actif"></select>
+                </label>
               </div>
             </div>
             <div class="hero-orbit" aria-hidden="true">
@@ -137,7 +141,7 @@
               <div><span class="eyebrow">Vue personnelle multi-écoles</span><h3 id="agenda-date-title">Aujourd’hui</h3></div>
               <div class="date-navigation"><button id="agenda-prev" type="button" aria-label="Jour précédent">←</button><button id="agenda-today" type="button">Aujourd’hui</button><button id="agenda-next" type="button" aria-label="Jour suivant">→</button><button id="agenda-week" type="button">Semaine</button></div>
             </div>
-            <div class="agenda-filter"><label>École<select id="agenda-school-filter"><option value="all">Toutes les écoles</option></select></label><span id="agenda-sync-state"></span></div>
+            <div class="agenda-filter"><label>Filtrer l’agenda<select id="agenda-school-filter"><option value="all">Toutes les écoles</option></select></label><span id="agenda-sync-state"></span></div>
             <div id="aggregate-agenda-list" class="aggregate-agenda-list"></div>
           </article>
 
@@ -315,8 +319,8 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="assets/supabase.min.js" defer></script>
   <script src="config.js" defer></script>
-  <script src="assets/platform.js" defer></script>
-  <script src="assets/smart.js" defer></script>
-  <script src="assets/app.js" defer></script>
+  <script src="assets/platform.js?v=12" defer></script>
+  <script src="assets/smart.js?v=12" defer></script>
+  <script src="assets/app.js?v=12" defer></script>
 </body>
 </html>

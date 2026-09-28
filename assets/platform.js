@@ -58,14 +58,14 @@
   function platformKey(userId, schoolId) { return `${userId}:${schoolId}`; }
   function isMissingRpc(error) { return /get_my_platform_bootstrap|schema cache|could not find/i.test(error?.message || ""); }
 
-  async function fetchPayload(client, requestedSchoolId = null) {
+  async function fetchPayload(client, requestedSchoolId = null, options = {}) {
     const schoolId = requestedSchoolId || localStorage.getItem("horaire-pro-school") || null;
     const session = await client.auth.getSession();
     const sessionUser = session.data.session?.user;
     const userId = sessionUser?.id;
     const cached = userId && schoolId ? await idbGet(platformKey(userId, schoolId)) : null;
     const tokenResult = await client.rpc("get_my_platform_sync_token", {p_school_id:schoolId});
-    if (!tokenResult.error && cached?.syncToken && cached.syncToken === tokenResult.data) {
+    if (!options.force && !tokenResult.error && cached?.syncToken && cached.syncToken === tokenResult.data) {
       cached.savedAt = Date.now();
       if (sessionUser?.user_metadata && "must_change_password" in sessionUser.user_metadata) cached.payload.profile.must_change_password=Boolean(sessionUser.user_metadata.must_change_password);
       await idbPut(cached);
@@ -107,12 +107,21 @@
   function renderSchoolControls() {
     const schools = schoolList();
     const selected = ctx.state.platform.selected_school_id;
-    const select = $("#school-switcher");
-    select.innerHTML = schools.map((school)=>`<option value="${h(school.id)}">${h(school.short_name)} · ${h(school.name)}</option>`).join("");
-    select.value = selected;
+    const options = schools.map((school)=>`<option value="${h(school.id)}">${h(school.short_name)} · ${h(school.name)}</option>`).join("");
+    const sidebarSelect = $("#school-switcher");
+    const dashboardSelect = $("#dashboard-school-switcher");
+    for (const select of [sidebarSelect,dashboardSelect].filter(Boolean)) {
+      select.innerHTML = options;
+      select.value = selected;
+      select.disabled = false;
+    }
     $("#school-switcher-wrap").hidden = !schools.length;
+    if ($("#dashboard-school-switcher-wrap")) $("#dashboard-school-switcher-wrap").hidden = schools.length < 2;
     $("#sidebar-school-name").textContent = currentSchool()?.name || "Horaire Pro";
-    $("#agenda-school-filter").innerHTML = `<option value="all">Toutes les écoles</option>${schools.map((school)=>`<option value="${h(school.id)}">${h(school.short_name)}</option>`).join("")}`;
+    const agendaFilter = $("#agenda-school-filter");
+    const agendaValue = agendaFilter.value || "all";
+    agendaFilter.innerHTML = `<option value="all">Toutes les écoles</option>${schools.map((school)=>`<option value="${h(school.id)}">${h(school.short_name)}</option>`).join("")}`;
+    agendaFilter.value = schools.some((school)=>school.id===agendaValue) ? agendaValue : "all";
     const modal = $("#school-modal");
     const remembered = localStorage.getItem("horaire-pro-school-confirmed");
     if (schools.length > 1 && !remembered) {
@@ -187,10 +196,27 @@
   }
 
   async function switchSchool(schoolId) {
-    localStorage.setItem("horaire-pro-school",schoolId);
-    localStorage.setItem("horaire-pro-school-confirmed","1");
-    $("#school-modal").hidden=true;
-    await ctx.reload({schoolId});
+    if (!schoolId || schoolId === ctx.state.platform?.selected_school_id) return;
+    const previous = ctx.state.platform?.selected_school_id;
+    const controls = [$("#school-switcher"),$("#dashboard-school-switcher")].filter(Boolean);
+    controls.forEach((control)=>{control.disabled=true;control.value=schoolId;});
+    document.body.classList.add("school-switching");
+    ctx.showToast(`Ouverture de ${schoolLabel(schoolId)}…`);
+    try {
+      const loaded = await ctx.reload({schoolId,force:true});
+      if (!loaded || ctx.state.platform?.selected_school_id !== schoolId) throw new Error("Établissement non chargé");
+      localStorage.setItem("horaire-pro-school",schoolId);
+      localStorage.setItem("horaire-pro-school-confirmed","1");
+      $("#school-modal").hidden=true;
+      ctx.showToast(`${schoolLabel(schoolId)} activé`);
+    } catch(error) {
+      controls.forEach((control)=>{control.value=previous||"";});
+      ctx.showToast("Impossible de changer d’établissement");
+      console.error(error);
+    } finally {
+      controls.forEach((control)=>{control.disabled=false;});
+      document.body.classList.remove("school-switching");
+    }
   }
   async function cloneTimetable(event) {
     event.preventDefault(); const status=$("#clone-status");status.textContent="Création…";
@@ -280,6 +306,7 @@
   function bind(context) {
     ctx=context;
     $("#school-switcher")?.addEventListener("change",(event)=>switchSchool(event.target.value));
+    $("#dashboard-school-switcher")?.addEventListener("change",(event)=>switchSchool(event.target.value));
     $("#school-modal-list")?.addEventListener("click",(event)=>{const button=event.target.closest("[data-choose-school]");if(button)switchSchool(button.dataset.chooseSchool);});
     $("#agenda-prev")?.addEventListener("click",()=>{selectedDate.setDate(selectedDate.getDate()-(weekMode?7:1));renderAgenda();});
     $("#agenda-next")?.addEventListener("click",()=>{selectedDate.setDate(selectedDate.getDate()+(weekMode?7:1));renderAgenda();});

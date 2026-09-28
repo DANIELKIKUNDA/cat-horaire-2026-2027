@@ -46,9 +46,9 @@ function setWorkspaceMode(mode, remember = true) {
   }
 }
 
-function loginEmail(value) {
+function loginEmails(value) {
   const input = value.trim().toLowerCase();
-  return input.includes("@") ? input : `${input}@cat-horaire.local`;
+  return input.includes("@") ? [input] : [`${input}@cat-horaire.local`, `${input}@apn-horaire.local`];
 }
 
 function showLogin(message = "", success = false) {
@@ -537,23 +537,30 @@ function renderPortal() {
 
 async function loadPortal(options = {}) {
   try {
-    let payload = await window.HoraireProPlatform?.fetchPayload(state.client, options.schoolId);
+    let payload = await window.HoraireProPlatform?.fetchPayload(state.client, options.schoolId, {force:Boolean(options.force)});
     if (!payload) {
       const legacy = await state.client.rpc("get_my_portal_data");
       if (legacy.error) throw legacy.error;
       payload = legacy.data;
     }
+    if (options.schoolId && payload.platform?.selected_school_id !== options.schoolId) throw new Error("L’établissement demandé n’a pas été chargé.");
     assignPayload(payload);
     renderPortal();
     if (!options.silent) showToast(state.platform ? "Horaire synchronisé" : "Portail chargé");
+    return true;
   } catch (error) {
     console.error(error);
+    if (options.force) {
+      showToast("Changement d’établissement impossible");
+      return false;
+    }
     const platformOffline = await window.HoraireProPlatform?.loadOffline();
     const username = $("#login-id").value.trim().toLowerCase() || "";
     const legacyOffline = window.CATSmart?.loadOffline(username);
     const payload = platformOffline?.payload || legacyOffline;
-    if (payload) { assignPayload(payload); renderPortal(); showToast("Mode hors connexion · dernière synchronisation"); }
-    else showLogin("Impossible de charger votre horaire. Contactez la direction.");
+    if (payload) { assignPayload(payload); renderPortal(); showToast("Mode hors connexion · dernière synchronisation"); return true; }
+    showLogin("Impossible de charger votre horaire. Contactez la direction.");
+    return false;
   }
 }
 
@@ -582,10 +589,12 @@ async function init() {
     const button = event.submitter;
     button.disabled = true;
     $("#login-status").textContent = "Vérification…";
-    const {error} = await state.client.auth.signInWithPassword({
-      email: loginEmail($("#login-id").value),
-      password: $("#login-password").value,
-    });
+    let error = null;
+    for (const email of loginEmails($("#login-id").value)) {
+      const result = await state.client.auth.signInWithPassword({email,password:$("#login-password").value});
+      error = result.error;
+      if (!error) break;
+    }
     button.disabled = false;
     if (error) { showLogin("Identifiant ou mot de passe incorrect."); return; }
     $("#login-status").textContent = "";
