@@ -76,6 +76,7 @@ function setSidebarOpen(open) {
 
 const titles = {
   dashboard: "Tableau de bord",
+  agenda: "Agenda multi-écoles",
   classes: "Horaire des classes",
   teachers: "Horaire des enseignants",
   operations: "Centre des opérations",
@@ -139,6 +140,7 @@ function populateSelect(select, items, valueKey = "id") {
 
 function setView(view, updateHash = true) {
   if (!titles[view]) view = "dashboard";
+  if (view === "agenda" && (state.platform?.schools || []).length < 2) view = "dashboard";
   if (!isDirector() && ["classes", "operations", "changes", "stats", "accounts", "history", "documents"].includes(view)) view = "teachers";
   if (view === "operations" && !canOperateSchool()) view = "dashboard";
   if (view === "changes" && !canOperateSchool()) view = "dashboard";
@@ -374,11 +376,11 @@ async function openDocument(path) {
 
 function renderMobileNav() {
   const host=$("#mobile-bottom-nav");if(!host)return;
-  const roles=profileRoles();let items;
-  if(!isDirector()) items=[["dashboard","⌂","Accueil"],["teachers","▤","Mon horaire"],["assistant","✦","Assistant"],["announcements","◈","Annonces"],["settings","◎","Compte"]];
-  else if(roles.includes("viewer")&&!roles.some(role=>["direction","admin","scheduler"].includes(role))) items=[["dashboard","⌂","Accueil"],["classes","▦","Classes"],["teachers","♙","Profs"],["announcements","◈","Annonces"],["settings","◎","Compte"]];
-  else if(roles.includes("scheduler")&&!roles.some(role=>["direction","admin"].includes(role))) items=[["dashboard","⌂","Accueil"],["classes","▦","Classes"],["changes","⇄","Modifier"],["announcements","◈","Annonces"],["menu","☰","Plus"]];
-  else items=[["dashboard","⌂","Accueil"],["classes","▦","Classes"],["operations","◉","En direct"],["announcements","◈","Annonces"],["menu","☰","Plus"]];
+  const roles=profileRoles();const multi=(state.platform?.schools||[]).length>1;let items;
+  if(!isDirector()) items=[["dashboard","⌂","Accueil"],["teachers","▤","Mon horaire"],[multi?"agenda":"assistant",multi?"▣":"✦",multi?"Agenda":"Assistant"],["announcements","◈","Annonces"],["settings","◎","Compte"]];
+  else if(roles.includes("viewer")&&!roles.some(role=>["direction","admin","scheduler"].includes(role))) items=[["dashboard","⌂","Accueil"],["classes","▦","Classes"],[multi?"agenda":"teachers",multi?"▣":"♙",multi?"Agenda":"Profs"],["announcements","◈","Annonces"],["settings","◎","Compte"]];
+  else if(roles.includes("scheduler")&&!roles.some(role=>["direction","admin"].includes(role))) items=[["dashboard","⌂","Accueil"],["classes","▦","Classes"],[multi?"agenda":"changes",multi?"▣":"⇄",multi?"Agenda":"Modifier"],["announcements","◈","Annonces"],["menu","☰","Plus"]];
+  else items=[["dashboard","⌂","Accueil"],["classes","▦","Classes"],[multi?"agenda":"operations",multi?"▣":"◉",multi?"Agenda":"En direct"],["announcements","◈","Annonces"],["menu","☰","Plus"]];
   host.innerHTML=items.map(([view,icon,label])=>`<button type="button" ${view==="menu"?'data-mobile-menu':`data-mobile-go="${view}"`} class="${state.view===view?"active":""}"><i>${icon}</i><span>${label}</span>${view==="announcements"?'<b id="mobile-announcement-badge" hidden>0</b>':""}</button>`).join("");
   $$('[data-mobile-go]',host).forEach(button=>button.addEventListener("click",()=>setView(button.dataset.mobileGo)));
   $('[data-mobile-menu]',host)?.addEventListener("click",()=>setSidebarOpen(true));
@@ -397,6 +399,7 @@ function applyRole() {
   $$('[data-scheduler]').forEach((element) => { element.hidden = !canOperateSchool(); });
   $$('[data-management]').forEach((element) => { element.hidden = !canManageSchoolContent(); });
   $$('[data-history]').forEach((element) => { element.hidden = !director; });
+  $$('[data-multi-school]').forEach((element) => { element.hidden = (state.platform?.schools || []).length < 2; });
   $$('[data-account-manager-only]').forEach((element) => { element.hidden = !director || !canManageAccounts(); });
   $("#account-name").textContent = state.profile.full_name;
   $("#account-role").textContent = isDualRole()

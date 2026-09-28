@@ -8,7 +8,7 @@
   <title>Horaire Pro</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="manifest-v2.webmanifest">
-  <link rel="stylesheet" href="assets/styles.css?v=12">
+  <link rel="stylesheet" href="assets/styles.css?v=13">
 </head>
 <body>
   <section class="loading-screen" id="loading-screen" aria-live="polite">
@@ -66,6 +66,7 @@
 
       <nav class="main-nav" aria-label="Navigation principale">
         <a href="#dashboard" data-view="dashboard" class="active"><span>⌂</span> Tableau de bord</a>
+        <a href="#agenda" data-view="agenda" data-multi-school hidden><span>▤</span> Agenda multi-écoles</a>
         <a href="#classes" data-view="classes" data-full-schedule><span>▦</span> Horaire des classes</a>
         <a href="#teachers" data-view="teachers"><span>♙</span> <b id="teacher-nav-label">Horaire des enseignants</b></a>
         <a href="#operations" data-view="operations" data-operations><span>◉</span> Centre en direct</a>
@@ -99,6 +100,10 @@
           <span class="eyebrow">Portail officiel</span>
           <h1 id="page-title">Tableau de bord</h1>
         </div>
+        <label class="topbar-school-switcher" id="topbar-school-switcher-wrap" hidden>
+          <span>Établissement</span>
+          <select id="topbar-school-switcher" aria-label="Changer l’établissement actif"></select>
+        </label>
         <div class="topbar-actions">
           <label class="global-search">
             <span aria-hidden="true">⌕</span>
@@ -122,10 +127,6 @@
               <div class="hero-actions">
                 <button class="primary-button" id="primary-schedule-button" data-go="classes">Voir les horaires</button>
                 <button class="secondary-button" data-go="documents" data-management>Documents PDF</button>
-                <label class="hero-school-switcher" id="dashboard-school-switcher-wrap" hidden>
-                  <span>Établissement actif</span>
-                  <select id="dashboard-school-switcher" aria-label="Changer l’établissement actif"></select>
-                </label>
               </div>
             </div>
             <div class="hero-orbit" aria-hidden="true">
@@ -136,14 +137,6 @@
 
           <div id="smart-focus" class="smart-focus"></div>
 
-          <article class="panel platform-agenda" id="platform-agenda" hidden>
-            <div class="platform-agenda-head">
-              <div><span class="eyebrow">Vue personnelle multi-écoles</span><h3 id="agenda-date-title">Aujourd’hui</h3></div>
-              <div class="date-navigation"><button id="agenda-prev" type="button" aria-label="Jour précédent">←</button><button id="agenda-today" type="button">Aujourd’hui</button><button id="agenda-next" type="button" aria-label="Jour suivant">→</button><button id="agenda-week" type="button">Semaine</button></div>
-            </div>
-            <div class="agenda-filter"><label>Filtrer l’agenda<select id="agenda-school-filter"><option value="all">Toutes les écoles</option></select></label><span id="agenda-sync-state"></span></div>
-            <div id="aggregate-agenda-list" class="aggregate-agenda-list"></div>
-          </article>
 
           <div class="stats-grid" id="stats-grid"></div>
 
@@ -181,6 +174,20 @@
               <span class="muted" id="week-range"></span>
             </div>
             <div class="day-strip" id="day-strip"></div>
+          </article>
+        </section>
+
+        <section class="view" id="view-agenda" data-multi-school hidden>
+          <div class="section-intro">
+            <div><span class="eyebrow">Tous vos établissements</span><h2>Agenda multi-écoles</h2><p>Consultez vos cours CAT et APN dans une chronologie unique, sans modifier l’établissement actif.</p></div>
+          </div>
+          <article class="panel platform-agenda" id="platform-agenda" hidden>
+            <div class="platform-agenda-head">
+              <div><span class="eyebrow">Vue personnelle multi-écoles</span><h3 id="agenda-date-title">Aujourd’hui</h3></div>
+              <div class="date-navigation"><button id="agenda-prev" type="button" aria-label="Jour précédent">←</button><button id="agenda-today" type="button">Aujourd’hui</button><button id="agenda-next" type="button" aria-label="Jour suivant">→</button><button id="agenda-week" type="button">Semaine</button></div>
+            </div>
+            <div class="agenda-filter"><label>Filtrer l’agenda<select id="agenda-school-filter"><option value="all">Toutes les écoles</option></select></label><span id="agenda-sync-state"></span></div>
+            <div id="aggregate-agenda-list" class="aggregate-agenda-list"></div>
           </article>
         </section>
 
@@ -319,8 +326,8 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="assets/supabase.min.js" defer></script>
   <script src="config.js" defer></script>
-  <script src="assets/platform.js?v=12" defer></script>
-  <script src="assets/smart.js?v=12" defer></script>
-  <script src="assets/app.js?v=12" defer></script>
+  <script src="assets/platform.js?v=13" defer></script>
+  <script src="assets/smart.js?v=13" defer></script>
+  <script src="assets/app.js?v=13" defer></script>
 </body>
 </html>

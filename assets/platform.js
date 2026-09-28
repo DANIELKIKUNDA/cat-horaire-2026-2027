@@ -109,14 +109,14 @@
     const selected = ctx.state.platform.selected_school_id;
     const options = schools.map((school)=>`<option value="${h(school.id)}">${h(school.short_name)} · ${h(school.name)}</option>`).join("");
     const sidebarSelect = $("#school-switcher");
-    const dashboardSelect = $("#dashboard-school-switcher");
-    for (const select of [sidebarSelect,dashboardSelect].filter(Boolean)) {
+    const topbarSelect = $("#topbar-school-switcher");
+    for (const select of [sidebarSelect,topbarSelect].filter(Boolean)) {
       select.innerHTML = options;
       select.value = selected;
       select.disabled = false;
     }
     $("#school-switcher-wrap").hidden = !schools.length;
-    if ($("#dashboard-school-switcher-wrap")) $("#dashboard-school-switcher-wrap").hidden = schools.length < 2;
+    if ($("#topbar-school-switcher-wrap")) $("#topbar-school-switcher-wrap").hidden = schools.length < 2;
     $("#sidebar-school-name").textContent = currentSchool()?.name || "Horaire Pro";
     const agendaFilter = $("#agenda-school-filter");
     const agendaValue = agendaFilter.value || "all";
@@ -198,7 +198,7 @@
   async function switchSchool(schoolId) {
     if (!schoolId || schoolId === ctx.state.platform?.selected_school_id) return;
     const previous = ctx.state.platform?.selected_school_id;
-    const controls = [$("#school-switcher"),$("#dashboard-school-switcher")].filter(Boolean);
+    const controls = [$("#school-switcher"),$("#topbar-school-switcher")].filter(Boolean);
     controls.forEach((control)=>{control.disabled=true;control.value=schoolId;});
     document.body.classList.add("school-switching");
     ctx.showToast(`Ouverture de ${schoolLabel(schoolId)}…`);
@@ -306,7 +306,7 @@
   function bind(context) {
     ctx=context;
     $("#school-switcher")?.addEventListener("change",(event)=>switchSchool(event.target.value));
-    $("#dashboard-school-switcher")?.addEventListener("change",(event)=>switchSchool(event.target.value));
+    $("#topbar-school-switcher")?.addEventListener("change",(event)=>switchSchool(event.target.value));
     $("#school-modal-list")?.addEventListener("click",(event)=>{const button=event.target.closest("[data-choose-school]");if(button)switchSchool(button.dataset.chooseSchool);});
     $("#agenda-prev")?.addEventListener("click",()=>{selectedDate.setDate(selectedDate.getDate()-(weekMode?7:1));renderAgenda();});
     $("#agenda-next")?.addEventListener("click",()=>{selectedDate.setDate(selectedDate.getDate()+(weekMode?7:1));renderAgenda();});
