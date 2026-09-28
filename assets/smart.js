@@ -11,11 +11,15 @@
   const $ = (selector, root=document) => root.querySelector(selector);
   const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
   const h = (value) => String(value ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
+  const schoolTimeZone = () => {
+    const configured=ctx?.state.school?.timezone;
+    return !configured||configured==="Africa/Kinshasa"?"Africa/Lubumbashi":configured;
+  };
   const features = () => ctx.state.data.features || {announcements:[],changes:[],profiles:[],cells:[],audit:[],leadership:[],readAnnouncements:[]};
   const normalize = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 
   function kinshasaDate(date = new Date()) {
-    const parts = new Intl.DateTimeFormat("en-CA", {timeZone:"Africa/Kinshasa",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(date);
+    const parts = new Intl.DateTimeFormat("en-CA", {timeZone:schoolTimeZone(),year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(date);
     const p = Object.fromEntries(parts.map(x => [x.type,x.value]));
     return `${p.year}-${p.month}-${p.day}`;
   }
@@ -61,7 +65,7 @@
   }
 
   function clockSeconds() {
-    const parts=new Intl.DateTimeFormat("en-GB",{timeZone:"Africa/Kinshasa",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}).formatToParts(new Date());
+    const parts=new Intl.DateTimeFormat("en-GB",{timeZone:schoolTimeZone(),hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}).formatToParts(new Date());
     const p=Object.fromEntries(parts.map(x=>[x.type,Number(x.value)]));return p.hour*3600+p.minute*60+p.second;
   }
   function timeSeconds(value){const [hour,minute]=value.split(":").map(Number);return hour*3600+minute*60;}
@@ -296,7 +300,7 @@
   function renderAudit(){if(!ctx.isDirector())return;const list=$("#audit-list");const items=features().audit||[];list.innerHTML=items.length?items.map(x=>`<article class="activity-item"><span class="activity-icon">✓</span><div><strong>${h(x.actor)} · ${h(x.event_type)}</strong><p>${h(x.entity_type)}</p><small>${new Date(x.created_at).toLocaleString("fr-FR")}</small></div></article>`).join(""):`<div class="empty-state">Le journal se remplira avec les actions de la Direction.</div>`;}
 
   function icsEscape(value){return String(value).replaceAll("\\","\\\\").replaceAll(",","\\,").replaceAll(";","\\;").replaceAll("\n","\\n");}
-  function exportCalendar(){const teacher=ctx.isDirector()?(ctx.state.selectedTeacher||ctx.state.data.teachers[0].id):ctx.state.profile.teacher_id;const schedule=ctx.state.data.teacherSchedule[teacher]||{};let lines=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//CAT//Smart Horaire//FR","CALSCALE:GREGORIAN","X-WR-CALNAME:"+icsEscape(`CAT · ${teacher}`)];const startMonday=parseISO(currentWeekDate("Lundi"));for(let week=0;week<16;week++){for(const [slot,entries] of Object.entries(schedule)){const [day,period]=slot.split(":");const p=ctx.state.data.periods[day].find(x=>x.id===period);if(!p)continue;const date=new Date(startMonday);date.setDate(date.getDate()+week*7+DAY_INDEX[day]);const ds=`${date.getFullYear()}${String(date.getMonth()+1).padStart(2,"0")}${String(date.getDate()).padStart(2,"0")}`;const [start,end]=p.time.split("-").map(t=>t.replace(":",""));for(const e of entries){lines.push("BEGIN:VEVENT",`UID:${icsEscape(e.assignmentId)}-${ds}-${period}@cat-horaire`,`DTSTART;TZID=Africa/Kinshasa:${ds}T${start}00`,`DTEND;TZID=Africa/Kinshasa:${ds}T${end}00`,`SUMMARY:${icsEscape(e.course)}`,`DESCRIPTION:${icsEscape(e.classes.join(", "))}`,"END:VEVENT");}}}lines.push("END:VCALENDAR");const blob=new Blob([lines.join("\r\n")],{type:"text/calendar;charset=utf-8"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`CAT_${teacher.replaceAll(" ","_")}.ics`;a.click();URL.revokeObjectURL(a.href);ctx.showToast("Calendrier téléchargé");}
+  function exportCalendar(){const teacher=ctx.isDirector()?(ctx.state.selectedTeacher||ctx.state.data.teachers[0].id):ctx.state.profile.teacher_id;const schedule=ctx.state.data.teacherSchedule[teacher]||{};let lines=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//CAT//Smart Horaire//FR","CALSCALE:GREGORIAN","X-WR-CALNAME:"+icsEscape(`CAT · ${teacher}`)];const startMonday=parseISO(currentWeekDate("Lundi"));for(let week=0;week<16;week++){for(const [slot,entries] of Object.entries(schedule)){const [day,period]=slot.split(":");const p=ctx.state.data.periods[day].find(x=>x.id===period);if(!p)continue;const date=new Date(startMonday);date.setDate(date.getDate()+week*7+DAY_INDEX[day]);const ds=`${date.getFullYear()}${String(date.getMonth()+1).padStart(2,"0")}${String(date.getDate()).padStart(2,"0")}`;const [start,end]=p.time.split("-").map(t=>t.replace(":",""));for(const e of entries){lines.push("BEGIN:VEVENT",`UID:${icsEscape(e.assignmentId)}-${ds}-${period}@cat-horaire`,`DTSTART;TZID=Africa/Lubumbashi:${ds}T${start}00`,`DTEND;TZID=Africa/Lubumbashi:${ds}T${end}00`,`SUMMARY:${icsEscape(e.course)}`,`DESCRIPTION:${icsEscape(e.classes.join(", "))}`,"END:VEVENT");}}}lines.push("END:VCALENDAR");const blob=new Blob([lines.join("\r\n")],{type:"text/calendar;charset=utf-8"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`CAT_${teacher.replaceAll(" ","_")}.ics`;a.click();URL.revokeObjectURL(a.href);ctx.showToast("Calendrier téléchargé");}
   async function updateOwnPassword(a,b,status,form,required=false){
     if(a!==b){status.textContent="Les mots de passe ne correspondent pas.";return;}
     const {error}=await ctx.state.client.auth.updateUser({password:a,data:{must_change_password:false}});

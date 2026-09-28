@@ -1,5 +1,6 @@
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+const EXPLICIT_LOGOUT_KEY = "horaire-pro-explicit-logout";
 
 const state = {
   data: null,
@@ -96,9 +97,14 @@ const esc = (value) => String(value ?? "")
 
 const formatBytes = (bytes) => `${(bytes / 1024).toFixed(0)} Ko`;
 
-function kinshasaNow() {
+function schoolTimeZone() {
+  const configured = state.school?.timezone;
+  return !configured || configured === "Africa/Kinshasa" ? "Africa/Lubumbashi" : configured;
+}
+
+function schoolNow() {
   const parts = new Intl.DateTimeFormat("fr-FR", {
-    timeZone: "Africa/Kinshasa", weekday: "long", day: "2-digit", month: "long",
+    timeZone: schoolTimeZone(), weekday: "long", day: "2-digit", month: "long",
     hour: "2-digit", minute: "2-digit", hour12: false,
   }).formatToParts(new Date());
   return Object.fromEntries(parts.map(({type, value}) => [type, value]));
@@ -114,7 +120,7 @@ function timeToMinutes(value) {
 }
 
 function liveContext() {
-  const now = kinshasaNow();
+  const now = schoolNow();
   const day = normalizeDay(now.weekday);
   const minute = Number(now.hour) * 60 + Number(now.minute);
   const periods = state.data.periods[day] || [];
@@ -345,7 +351,7 @@ function selectSearchResult(type, id) {
 }
 
 function updateClock() {
-  const now = kinshasaNow();
+  const now = schoolNow();
   $("#today-label").textContent = `${normalizeDay(now.weekday)} ${now.day} ${now.month}`;
   $("#clock").textContent = `${now.hour}:${now.minute}`;
 }
@@ -390,6 +396,7 @@ function applyRole() {
   const director = isDirector();
   const position = state.profile.position_title?.trim();
   const roles = profileRoles();
+  const viewerOnly = roles.includes("viewer") && !roles.some((role) => ["direction","admin","scheduler"].includes(role));
   const managementLabel = position || (roles.includes("admin") ? "Administration" : roles.includes("scheduler") ? "Planification" : roles.includes("viewer") ? "Consultation" : "Direction");
   document.body.dataset.workspace = director ? "direction" : "teacher";
   document.body.dataset.primaryRole = profileRoles().includes("viewer") && !profileRoles().some(role => ["direction","admin","scheduler"].includes(role)) ? "viewer" : (profileRoles().includes("scheduler") && !profileRoles().some(role => ["direction","admin"].includes(role)) ? "scheduler" : (director ? "management" : "teacher"));
@@ -404,7 +411,7 @@ function applyRole() {
   $("#account-name").textContent = state.profile.full_name;
   $("#account-role").textContent = isDualRole()
     ? (director ? `${managementLabel} + enseignant · espace ${managementLabel}` : `${managementLabel} + enseignant · espace personnel`)
-    : (director ? "Direction · accès complet" : "Enseignant · accès personnel");
+    : (viewerOnly ? `${managementLabel} · consultation complète` : (director ? `${managementLabel} · accès de gestion` : "Enseignant · accès personnel"));
   $("#account-avatar").textContent = state.profile.full_name.charAt(0).toUpperCase();
   titles.teachers = director ? "Horaire des enseignants" : "Mon horaire";
   titles.assistant = director ? "Assistant de l’école" : "Mon assistant horaire";
@@ -468,7 +475,8 @@ function bindEvents() {
     if (card) openDocument(card.dataset.documentPath);
   });
   $("#logout-button").addEventListener("click", async () => {
-    await state.client.auth.signOut();
+    localStorage.setItem(EXPLICIT_LOGOUT_KEY, "1");
+    try { await state.client.auth.signOut({scope:"local"}); } catch (error) { console.warn("Déconnexion locale", error); }
     state.data = null; state.profile = null;
     history.replaceState(null, "", location.pathname);
     showLogin("Vous êtes déconnecté.", true);
@@ -600,11 +608,33 @@ async function init() {
     }
     button.disabled = false;
     if (error) { showLogin("Identifiant ou mot de passe incorrect."); return; }
+    localStorage.removeItem(EXPLICIT_LOGOUT_KEY);
     $("#login-status").textContent = "";
     await loadPortal();
   });
-  const {data: {session}} = await state.client.auth.getSession();
-  if (session) await loadPortal(); else showLogin();
+  let session = null;
+  try {
+    const result = await state.client.auth.getSession();
+    session = result.data.session;
+  } catch (error) {
+    console.warn("Session réseau indisponible, ouverture de la copie locale", error);
+  }
+  if (session) {
+    localStorage.removeItem(EXPLICIT_LOGOUT_KEY);
+    await loadPortal();
+  } else if (localStorage.getItem(EXPLICIT_LOGOUT_KEY) !== "1") {
+    const platformOffline = await window.HoraireProPlatform?.loadOffline();
+    const cachedPayload = platformOffline?.payload || window.CATSmart?.loadOffline();
+    if (cachedPayload) {
+      assignPayload(cachedPayload);
+      renderPortal();
+      showToast("Mode hors connexion · session conservée");
+    } else {
+      showLogin();
+    }
+  } else {
+    showLogin();
+  }
   if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("sw.js").catch(() => {});
 }
 
