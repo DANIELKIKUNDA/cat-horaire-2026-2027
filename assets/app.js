@@ -28,14 +28,15 @@ const normalizedPosition = () => String(state.profile?.position_title || "").nor
 const isPromoterAssistant = () => /assistant.*promoteur|promoteur.*assistant/.test(normalizedPosition());
 const isHrViewer = () => /(^|\s)drh($|\s)|ressources humaines/.test(normalizedPosition());
 const isFocusedObserver = () => isPromoterAssistant() || isHrViewer();
-const canManageSchool = () => profileRoles().some((role) => managerRoles.has(role));
-const canManageAccounts = () => profileRoles().some((role) => ["direction", "admin"].includes(role));
-const canOperateSchool = () => isDirector() && profileRoles().some((role) => ["direction", "admin", "scheduler"].includes(role));
-const canManageSchoolContent = () => isDirector() && profileRoles().some((role) => ["direction", "admin"].includes(role));
-const hasScheduleAccess = () => Boolean(state.profile?.teacher_id) || profileRoles().some((role) => managerRoles.has(role));
+const isSystemAdmin = () => Boolean(state.profile?.is_system_admin);
+const canManageSchool = () => isSystemAdmin() || profileRoles().some((role) => managerRoles.has(role));
+const canManageAccounts = () => isSystemAdmin() || profileRoles().some((role) => ["direction", "admin"].includes(role));
+const canOperateSchool = () => isDirector() && (isSystemAdmin() || profileRoles().some((role) => ["direction", "admin", "scheduler"].includes(role)));
+const canManageSchoolContent = () => isDirector() && (isSystemAdmin() || profileRoles().some((role) => ["direction", "admin"].includes(role)));
+const hasScheduleAccess = () => isSystemAdmin() || Boolean(state.profile?.teacher_id) || profileRoles().some((role) => managerRoles.has(role));
 const canAccessIntendance = () => Boolean(state.profile?.is_system_admin) || profileRoles().some((role) => ["direction", "admin", "intendant", "intendance_viewer"].includes(role));
 const canWriteIntendance = () => Boolean(state.profile?.is_system_admin) || profileRoles().some((role) => ["direction", "admin", "intendant"].includes(role));
-const isDualRole = () => canManageSchool() && profileRoles().includes("teacher") && Boolean(state.profile?.teacher_id);
+const isDualRole = () => canManageSchool() && Boolean(state.profile?.teacher_id) && (isSystemAdmin() || profileRoles().includes("teacher"));
 const workspaceStorageKey = () => `horaire-pro-workspace:${state.profile?.id || "guest"}:${state.platform?.selected_school_id || "legacy"}`;
 const workspaceMode = () => {
   if (!canManageSchool()) return "teacher";
@@ -464,10 +465,10 @@ function applyRole() {
   const director = isDirector();
   const position = state.profile.position_title?.trim();
   const roles = profileRoles();
-  const viewerOnly = roles.includes("viewer") && !roles.some((role) => ["direction","admin","scheduler"].includes(role));
-  const managementLabel = position || (roles.includes("admin") ? "Administration" : roles.includes("scheduler") ? "Planification" : roles.includes("viewer") ? "Consultation" : "Direction");
+  const viewerOnly = !isSystemAdmin() && roles.includes("viewer") && !roles.some((role) => ["direction","admin","scheduler"].includes(role));
+  const managementLabel = isSystemAdmin() ? "Administrateur système" : position || (roles.includes("admin") ? "Administration" : roles.includes("scheduler") ? "Planification" : roles.includes("viewer") ? "Consultation" : "Direction");
   document.body.dataset.workspace = director ? "direction" : "teacher";
-  document.body.dataset.primaryRole = isPromoterAssistant() ? "promoter-assistant" : isHrViewer() ? "hr" : (profileRoles().includes("viewer") && !profileRoles().some(role => ["direction","admin","scheduler"].includes(role)) ? "viewer" : (profileRoles().includes("scheduler") && !profileRoles().some(role => ["direction","admin"].includes(role)) ? "scheduler" : (director ? "management" : "teacher")));
+  document.body.dataset.primaryRole = isSystemAdmin() ? "system-admin" : isPromoterAssistant() ? "promoter-assistant" : isHrViewer() ? "hr" : (profileRoles().includes("viewer") && !profileRoles().some(role => ["direction","admin","scheduler"].includes(role)) ? "viewer" : (profileRoles().includes("scheduler") && !profileRoles().some(role => ["direction","admin"].includes(role)) ? "scheduler" : (director ? "management" : "teacher")));
   $$('[data-director-only]').forEach((element) => { element.hidden = !director; });
   $$('[data-full-schedule]').forEach((element) => { element.hidden = !director; });
   $$('[data-operations]').forEach((element) => { element.hidden = !canOperateSchool(); });

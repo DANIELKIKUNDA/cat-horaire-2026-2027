@@ -98,7 +98,7 @@
   }
 
   function roles() { return ctx?.state.profile?.roles || []; }
-  function canManage() { return roles().some((role) => ["direction","admin","scheduler"].includes(role)); }
+  function canManage() { return Boolean(ctx?.state.profile?.is_system_admin) || roles().some((role) => ["direction","admin","scheduler"].includes(role)); }
   function schoolList() { return ctx?.state.platform?.schools || []; }
   function currentSchool() { return ctx?.state.school || null; }
   function formatDate(date) { return new Intl.DateTimeFormat("fr-FR", {weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(date); }
