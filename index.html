@@ -8,8 +8,8 @@
   <title>Horaire Pro</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="manifest-v2.webmanifest">
-  <link rel="stylesheet" href="assets/styles.css?v=15">
-  <link rel="stylesheet" href="assets/intendance.css?v=15">
+  <link rel="stylesheet" href="assets/styles.css?v=16">
+  <link rel="stylesheet" href="assets/intendance.css?v=16">
 </head>
 <body>
   <section class="loading-screen" id="loading-screen" aria-live="polite">
@@ -143,11 +143,6 @@
           <div class="stats-grid" id="stats-grid"></div>
 
           <div id="dashboard-alerts"></div>
-
-          <article class="panel leadership-panel" id="school-leadership" hidden>
-            <div class="panel-heading"><div><span class="eyebrow">Responsables de l’établissement</span><h3>Direction de l’école</h3></div><span class="leadership-mark" aria-hidden="true">◆</span></div>
-            <div id="leadership-list" class="leadership-list"></div>
-          </article>
 
           <div class="dashboard-grid">
             <article class="panel live-panel">
@@ -335,7 +330,7 @@
           <div class="section-intro"><div><span class="eyebrow">Préférences</span><h2>Mon compte</h2><p>Personnalisez votre expérience et protégez votre accès.</p></div></div>
           <div class="settings-grid">
             <article class="panel profile-panel"><span class="profile-large" id="settings-avatar">U</span><h3 id="settings-name">Utilisateur</h3><p id="settings-role"></p><button class="secondary-ink-button" id="settings-install" type="button">Installer l’application</button><button class="secondary-ink-button" id="enable-notifications" type="button">Activer les notifications</button><button class="secondary-ink-button" id="export-calendar" type="button">Ajouter à mon calendrier</button></article>
-            <form class="panel smart-form" id="password-form"><div class="panel-heading"><div><span class="eyebrow">Sécurité</span><h3>Changer mon mot de passe</h3></div></div><label>Nouveau mot de passe<input id="new-password" type="password" minlength="10" required></label><label>Confirmer le mot de passe<input id="confirm-password" type="password" minlength="10" required></label><button class="primary-button" type="submit">Mettre à jour</button><div id="password-status" class="login-status"></div></form>
+            <form class="panel smart-form" id="password-form"><div class="panel-heading"><div><span class="eyebrow">Sécurité</span><h3>Changer mon mot de passe</h3></div></div><label>Nouveau mot de passe<div class="password-field"><input id="new-password" type="password" minlength="10" autocomplete="new-password" required><button type="button" data-password-visibility="new-password" aria-label="Afficher le nouveau mot de passe">Voir</button></div></label><label>Confirmer le mot de passe<div class="password-field"><input id="confirm-password" type="password" minlength="10" autocomplete="new-password" required><button type="button" data-password-visibility="confirm-password" aria-label="Afficher la confirmation du mot de passe">Voir</button></div></label><p class="privacy-note">Vous pouvez conserver le mot de passe reçu et le remplacer ici quand vous le souhaitez.</p><button class="primary-button" type="submit">Mettre à jour</button><div id="password-status" class="login-status"></div></form>
           </div>
         </section>
       </div>
@@ -343,11 +338,11 @@
   </div>
 
   <nav class="mobile-bottom-nav" id="mobile-bottom-nav" aria-label="Accès rapide mobile"></nav>
+  <button class="page-scroll-toggle" id="page-scroll-toggle" type="button" hidden aria-label="Descendre dans la page"><span aria-hidden="true">↓</span></button>
 
   <div class="school-modal" id="school-modal" hidden><div class="school-modal-card"><img src="assets/horaire-pro-logo.svg" alt=""><span class="eyebrow">Vos établissements</span><h2>Choisissez votre espace</h2><p>Vous pourrez changer d’école à tout moment sans vous reconnecter.</p><div id="school-modal-list" class="school-modal-list"></div></div></div>
   <div class="school-modal" id="workspace-modal" hidden><div class="school-modal-card workspace-choice-card"><span class="choice-mark">HP</span><span class="eyebrow">Double fonction détectée</span><h2>Comment voulez-vous travailler ?</h2><p>Votre compte possède une fonction de direction et un horaire d’enseignant. Vous pourrez changer d’espace à tout moment.</p><div class="workspace-choices"><button type="button" data-workspace-choice="teacher"><span>♙</span><strong>Mon espace enseignant</strong><small>Mes cours, mon prochain créneau et mes annonces</small></button><button type="button" data-workspace-choice="direction"><span>◆</span><strong id="workspace-direction-label">Espace Direction</strong><small>École en direct, comptes, classes et documents</small></button></div></div></div>
-  <div class="school-modal" id="membership-modal" hidden><form class="school-modal-card smart-form" id="membership-edit-form"><span class="eyebrow">Adhésion à l’établissement</span><h2 id="membership-edit-name">Gérer un membre</h2><input id="membership-edit-user" type="hidden"><input id="membership-edit-id" type="hidden"><label>Référence enseignant<input id="membership-edit-teacher"></label><label>Fonction dans l’école<input id="membership-edit-position" placeholder="Ex. Préfet, DE"></label><fieldset class="role-checks"><legend>Rôles autorisés</legend><label><input type="checkbox" name="membership-edit-role" value="teacher"> Enseignant</label><label><input type="checkbox" name="membership-edit-role" value="direction"> Direction</label><label><input type="checkbox" name="membership-edit-role" value="admin"> Admin</label><label><input type="checkbox" name="membership-edit-role" value="scheduler"> Planificateur</label><label><input type="checkbox" name="membership-edit-role" value="viewer"> Consultation seule</label><label><input type="checkbox" name="membership-edit-role" value="intendant"> Intendant</label><label><input type="checkbox" name="membership-edit-role" value="intendance_viewer"> Suivi Intendance</label></fieldset><div class="credential-reset"><div><strong>Accès au compte</strong><small>Crée un mot de passe temporaire à usage unique. L’utilisateur devra le remplacer à sa prochaine connexion.</small></div><button class="secondary-ink-button" id="membership-reset-password" type="button">Réinitialiser le mot de passe</button></div><div class="one-time-secret" id="membership-temporary-password" hidden><span>Mot de passe temporaire — affiché une seule fois</span><div><code id="membership-temporary-password-value"></code><button type="button" id="membership-copy-password">Copier</button></div></div><div class="form-actions membership-edit-actions"><button class="secondary-ink-button danger" id="membership-remove" type="button">Retirer de l’école</button><button class="secondary-ink-button" id="membership-edit-close" type="button">Fermer</button><button class="primary-button" type="submit">Enregistrer</button></div><div id="membership-edit-status" class="login-status"></div></form></div>
-  <div class="school-modal" id="password-required-modal" hidden><form class="school-modal-card smart-form" id="required-password-form"><span class="choice-mark">✓</span><span class="eyebrow">Sécurité du compte</span><h2>Créez votre mot de passe personnel</h2><p>Le mot de passe temporaire a ouvert votre session. Choisissez maintenant un mot de passe personnel d’au moins 10 caractères.</p><label>Nouveau mot de passe<input id="required-new-password" type="password" minlength="10" autocomplete="new-password" required></label><label>Confirmer le mot de passe<input id="required-confirm-password" type="password" minlength="10" autocomplete="new-password" required></label><button class="primary-button" type="submit">Sécuriser mon compte</button><div id="required-password-status" class="login-status"></div></form></div>
+  <div class="school-modal" id="membership-modal" hidden><form class="school-modal-card smart-form" id="membership-edit-form"><span class="eyebrow">Adhésion à l’établissement</span><h2 id="membership-edit-name">Gérer un membre</h2><input id="membership-edit-user" type="hidden"><input id="membership-edit-id" type="hidden"><label>Référence enseignant<input id="membership-edit-teacher"></label><label>Fonction dans l’école<input id="membership-edit-position" placeholder="Ex. Préfet, DE"></label><fieldset class="role-checks"><legend>Rôles autorisés</legend><label><input type="checkbox" name="membership-edit-role" value="teacher"> Enseignant</label><label><input type="checkbox" name="membership-edit-role" value="direction"> Direction</label><label><input type="checkbox" name="membership-edit-role" value="admin"> Admin</label><label><input type="checkbox" name="membership-edit-role" value="scheduler"> Planificateur</label><label><input type="checkbox" name="membership-edit-role" value="viewer"> Consultation seule</label><label><input type="checkbox" name="membership-edit-role" value="intendant"> Intendant</label><label><input type="checkbox" name="membership-edit-role" value="intendance_viewer"> Suivi Intendance</label></fieldset><div class="credential-reset"><div><strong>Accès au compte</strong><small>Crée un nouveau mot de passe initial. L’utilisateur pourra le conserver ou le remplacer librement dans Mon compte.</small></div><button class="secondary-ink-button" id="membership-reset-password" type="button">Réinitialiser le mot de passe</button></div><div class="one-time-secret" id="membership-temporary-password" hidden><span>Mot de passe initial — affiché une seule fois</span><div><code id="membership-temporary-password-value"></code><button type="button" id="membership-copy-password">Copier</button></div></div><div class="form-actions membership-edit-actions"><button class="secondary-ink-button danger" id="membership-remove" type="button">Retirer de l’école</button><button class="secondary-ink-button" id="membership-edit-close" type="button">Fermer</button><button class="primary-button" type="submit">Enregistrer</button></div><div id="membership-edit-status" class="login-status"></div></form></div>
 
 
   <dialog class="intendance-dialog" id="intendance-dialog"><form method="dialog" class="intendance-dialog-card" id="intendance-dialog-form"><header><div><span class="eyebrow" id="intendance-dialog-kicker">Intendance</span><h2 id="intendance-dialog-title">Nouvelle opération</h2></div><button type="button" id="intendance-dialog-close" aria-label="Fermer">×</button></header><div id="intendance-dialog-body"></div><div class="intendance-dialog-actions"><button class="secondary-ink-button" type="button" id="intendance-dialog-cancel">Annuler</button><button class="primary-button" type="submit" id="intendance-dialog-submit">Enregistrer</button></div><div class="login-status" id="intendance-dialog-status"></div></form></dialog>
@@ -355,9 +350,9 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="assets/supabase.min.js" defer></script>
   <script src="config.js" defer></script>
-  <script src="assets/platform.js?v=15" defer></script>
-  <script src="assets/smart.js?v=15" defer></script>
-  <script src="assets/intendance.js?v=15" defer></script>
-  <script src="assets/app.js?v=15" defer></script>
+  <script src="assets/platform.js?v=16" defer></script>
+  <script src="assets/smart.js?v=16" defer></script>
+  <script src="assets/intendance.js?v=16" defer></script>
+  <script src="assets/app.js?v=16" defer></script>
 </body>
 </html>

@@ -1,6 +1,7 @@
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const EXPLICIT_LOGOUT_KEY = "horaire-pro-explicit-logout";
+let scrollToggleTimer = null;
 
 const state = {
   data: null,
@@ -68,6 +69,36 @@ function showPortal() {
   $("#loading-screen").hidden = true;
   $("#auth-screen").hidden = true;
   $("#app-shell").hidden = false;
+}
+
+function updateScrollToggle(wake = false) {
+  const button = $("#page-scroll-toggle");
+  if (!button) return;
+  const root = document.documentElement;
+  const scrollable = root.scrollHeight > window.innerHeight + 80;
+  button.hidden = !scrollable || $("#app-shell")?.hidden;
+  if (button.hidden) return;
+  const goesUp = window.scrollY > Math.max(180, window.innerHeight * .35);
+  button.dataset.direction = goesUp ? "up" : "down";
+  button.querySelector("span").textContent = goesUp ? "↑" : "↓";
+  button.setAttribute("aria-label", goesUp ? "Remonter en haut de la page" : "Descendre dans la page");
+  if (wake) {
+    button.classList.add("visible");
+    clearTimeout(scrollToggleTimer);
+    scrollToggleTimer = setTimeout(() => button.classList.remove("visible"), 2600);
+  }
+}
+
+function bindScrollToggle() {
+  const button = $("#page-scroll-toggle");
+  if (!button) return;
+  button.addEventListener("click", () => {
+    const target = button.dataset.direction === "up" ? 0 : Math.min(document.documentElement.scrollHeight, window.scrollY + window.innerHeight * .82);
+    window.scrollTo({top: target, behavior: "smooth"});
+    updateScrollToggle(true);
+  });
+  window.addEventListener("scroll", () => updateScrollToggle(true), {passive:true});
+  window.addEventListener("resize", () => updateScrollToggle(true));
 }
 
 function setSidebarOpen(open) {
@@ -166,6 +197,7 @@ function setView(view, updateHash = true) {
   setSidebarOpen(false);
   if (updateHash && location.hash !== `#${view}`) history.pushState(null, "", `#${view}`);
   window.scrollTo({top: 0, behavior: "smooth"});
+  setTimeout(() => updateScrollToggle(true), 180);
 }
 
 function renderStats() {
@@ -421,7 +453,7 @@ function applyRole() {
   $$('[data-multi-school]').forEach((element) => { element.hidden = (state.platform?.schools || []).length < 2; });
   $$('[data-account-manager-only]').forEach((element) => { element.hidden = !director || !canManageAccounts(); });
   $$('[data-intendance]').forEach((element) => { element.hidden = !canAccessIntendance(); });
-  $$('[data-intendance-write]').forEach((element) => { element.hidden = !canWriteIntendance() || !navigator.onLine; });
+  $$('[data-intendance-write]').forEach((element) => { element.hidden = !canWriteIntendance(); });
   $$('[data-schedule-access]').forEach((element) => { if (!hasScheduleAccess()) element.hidden = true; });
   $("#account-name").textContent = state.profile.full_name;
   $("#account-role").textContent = isDualRole()
@@ -561,7 +593,7 @@ function renderPortal() {
   const requestedView = location.hash.slice(1) || (!hasScheduleAccess() && canAccessIntendance() ? "intendance" : "dashboard");
   setView(requestedView, false);
   if (isDualRole() && !localStorage.getItem(workspaceStorageKey())) $("#workspace-modal").hidden = false;
-  if (state.profile?.must_change_password) $("#password-required-modal").hidden = false;
+  setTimeout(() => updateScrollToggle(true), 180);
 }
 
 async function loadPortal(options = {}) {
@@ -595,6 +627,7 @@ async function loadPortal(options = {}) {
 
 async function init() {
   bindEvents();
+  bindScrollToggle();
   if (localStorage.getItem("cat-theme") === "dark") {
     document.body.classList.add("dark"); $("#theme-toggle span").textContent = "Mode clair";
   }
@@ -613,6 +646,13 @@ async function init() {
   state.client = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey, {
     auth: {persistSession:true, autoRefreshToken:true, detectSessionInUrl:true, storageKey:"horaire-pro-auth"},
   });
+  $$('[data-password-visibility]').forEach((button) => button.addEventListener("click", () => {
+    const input = document.getElementById(button.dataset.passwordVisibility);
+    if (!input) return;
+    input.type = input.type === "password" ? "text" : "password";
+    button.textContent = input.type === "password" ? "Voir" : "Masquer";
+    button.setAttribute("aria-label", `${input.type === "password" ? "Afficher" : "Masquer"} le mot de passe`);
+  }));
   $("#login-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const button = event.submitter;
