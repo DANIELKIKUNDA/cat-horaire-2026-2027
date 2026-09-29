@@ -4,12 +4,23 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b3347">
-  <meta name="description" content="Horaire Pro, la plateforme sécurisée multi-écoles pour consulter et administrer les horaires scolaires.">
+  <meta name="description" content="Horaire Pro accompagne les établissements scolaires dans le suivi sécurisé des horaires, des enseignants et de l’intendance.">
+  <meta name="robots" content="index,follow,max-image-preview:large">
+  <link rel="canonical" href="https://horairepro.de/">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="fr_CD">
+  <meta property="og:site_name" content="Horaire Pro">
+  <meta property="og:title" content="Horaire Pro · Gestion scolaire intelligente">
+  <meta property="og:description" content="Horaires scolaires, suivi des enseignants et intendance dans une plateforme sécurisée.">
+  <meta property="og:url" content="https://horairepro.de/">
+  <meta property="og:image" content="https://horairepro.de/assets/login-campus-v1.webp">
+  <meta name="twitter:card" content="summary_large_image">
   <title>Horaire Pro</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="manifest-v2.webmanifest">
-  <link rel="stylesheet" href="assets/styles.css?v=19">
-  <link rel="stylesheet" href="assets/intendance.css?v=19">
+  <link rel="stylesheet" href="assets/styles.css?v=20">
+  <link rel="stylesheet" href="assets/intendance.css?v=20">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Horaire Pro","url":"https://horairepro.de/","applicationCategory":"EducationalApplication","operatingSystem":"Web, Android, Windows, iOS","description":"Plateforme sécurisée de gestion des horaires scolaires et de l’intendance."}</script>
 </head>
 <body>
   <section class="loading-screen" id="loading-screen" aria-live="polite">
@@ -17,35 +28,25 @@
   </section>
 
   <section class="auth-screen" id="auth-screen" hidden>
-    <div class="auth-visual">
-      <span class="auth-school-mark"><img src="assets/horaire-pro-logo.svg" alt="Horaire Pro"></span>
-      <div>
-        <span class="hero-kicker"><i></i> Horaire Pro sécurisé</span>
-        <h1>Votre horaire,<br><em>partout avec vous.</em></h1>
-        <p>Chaque enseignant consulte uniquement son propre horaire. La direction dispose de la vue complète certifiée.</p>
+    <div class="auth-atmosphere" aria-hidden="true"></div>
+    <div class="auth-corner-brand"><img src="assets/horaire-pro-logo.svg" alt=""><span><strong>Horaire Pro</strong><small>Gestion scolaire intelligente</small></span></div>
+    <form class="login-card" id="login-form">
+      <div class="login-brand-lockup"><img src="assets/horaire-pro-logo.svg" alt=""><div><strong>Horaire Pro</strong><small>Portail scolaire sécurisé</small></div></div>
+      <span class="eyebrow">Espace personnel</span>
+      <h2>Heureux de vous revoir.</h2>
+      <p>Connectez-vous pour retrouver votre établissement et votre journée.</p>
+      <label for="login-id">Identifiant</label>
+      <input id="login-id" name="login" autocomplete="username" autocapitalize="none" placeholder="prenom.nom" required>
+      <label for="login-password">Mot de passe</label>
+      <div class="password-field">
+        <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+        <button id="password-toggle" type="button" aria-label="Afficher le mot de passe">Voir</button>
       </div>
-      <small>Une plateforme pour tous vos établissements</small>
-      <small class="volcano-signature">From Volcano Tech</small>
-    </div>
-    <div class="auth-panel">
-      <form class="login-card" id="login-form">
-        <div class="login-brand-lockup"><img src="assets/horaire-pro-logo.svg" alt=""><div><strong>Horaire Pro</strong><small>Portail scolaire officiel</small></div></div>
-        <span class="eyebrow">Espace personnel</span>
-        <h2>Bienvenue.</h2>
-        <p>Utilisez l’identifiant et le mot de passe remis par la direction.</p>
-        <label for="login-id">Identifiant</label>
-        <input id="login-id" name="login" autocomplete="username" placeholder="prenom.nom" required>
-        <label for="login-password">Mot de passe</label>
-        <div class="password-field">
-          <input id="login-password" name="password" type="password" autocomplete="current-password" required>
-          <button id="password-toggle" type="button" aria-label="Afficher le mot de passe">Voir</button>
-        </div>
-        <button class="primary-button wide login-button" type="submit">Ouvrir mon horaire <span>→</span></button>
-        <div class="login-status" id="login-status" role="status" aria-live="polite"></div>
-        <small class="privacy-note">Connexion chiffrée · Session persistante · Accès personnel</small>
-        <small class="volcano-signature login-signature">From Volcano Tech</small>
-      </form>
-    </div>
+      <button class="primary-button wide login-button" type="submit">Accéder à mon espace <span>→</span></button>
+      <div class="login-status" id="login-status" role="status" aria-live="polite"></div>
+      <small class="privacy-note">Connexion sécurisée · Session conservée sur cet appareil</small>
+      <small class="volcano-signature login-signature">From Volcano Tech</small>
+    </form>
   </section>
 
   <div class="app-shell" id="app-shell" hidden>
@@ -112,7 +113,7 @@
             <input id="global-search" type="search" placeholder="Rechercher une classe ou un professeur…" autocomplete="off">
             <div class="search-results" id="search-results" hidden></div>
           </label>
-          <button class="top-action" id="install-app-button" type="button" title="Installer l’application">＋<span>Installer</span></button>
+          <button class="top-action" id="install-app-button" type="button" title="Installer l’application" hidden>＋<span>Installer</span></button>
           <button class="notification-button" id="notification-button" type="button" aria-label="Voir les notifications">◈<b id="notification-count" hidden>0</b></button>
           <div class="date-chip"><span id="today-label">Aujourd’hui</span><strong id="clock">--:--</strong></div>
         </div>
@@ -341,7 +342,7 @@
         <section class="view" id="view-settings">
           <div class="section-intro"><div><span class="eyebrow">Préférences</span><h2>Mon compte</h2><p>Personnalisez votre expérience et protégez votre accès.</p></div></div>
           <div class="settings-grid">
-            <article class="panel profile-panel"><span class="profile-large" id="settings-avatar">U</span><h3 id="settings-name">Utilisateur</h3><p id="settings-role"></p><button class="secondary-ink-button" id="settings-install" type="button">Installer l’application</button><button class="secondary-ink-button" id="enable-notifications" type="button">Activer les notifications</button><button class="secondary-ink-button" id="export-calendar" type="button">Ajouter à mon calendrier</button></article>
+            <article class="panel profile-panel"><span class="profile-large" id="settings-avatar">U</span><h3 id="settings-name">Utilisateur</h3><p id="settings-role"></p><button class="secondary-ink-button" id="settings-install" type="button" hidden>Installer l’application</button><button class="secondary-ink-button" id="enable-notifications" type="button">Activer les notifications</button><button class="secondary-ink-button" id="export-calendar" type="button">Ajouter à mon calendrier</button></article>
             <form class="panel smart-form" id="password-form"><div class="panel-heading"><div><span class="eyebrow">Sécurité</span><h3>Changer mon mot de passe</h3></div></div><label>Nouveau mot de passe<div class="password-field"><input id="new-password" type="password" minlength="10" autocomplete="new-password" required><button type="button" data-password-visibility="new-password" aria-label="Afficher le nouveau mot de passe">Voir</button></div></label><label>Confirmer le mot de passe<div class="password-field"><input id="confirm-password" type="password" minlength="10" autocomplete="new-password" required><button type="button" data-password-visibility="confirm-password" aria-label="Afficher la confirmation du mot de passe">Voir</button></div></label><p class="privacy-note">Vous pouvez conserver le mot de passe reçu et le remplacer ici quand vous le souhaitez.</p><button class="primary-button" type="submit">Mettre à jour</button><div id="password-status" class="login-status"></div></form>
           </div>
         </section>
@@ -363,9 +364,9 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="assets/supabase.min.js" defer></script>
   <script src="config.js" defer></script>
-  <script src="assets/platform.js?v=19" defer></script>
-  <script src="assets/smart.js?v=19" defer></script>
-  <script src="assets/intendance.js?v=19" defer></script>
-  <script src="assets/app.js?v=19" defer></script>
+  <script src="assets/platform.js?v=20" defer></script>
+  <script src="assets/smart.js?v=20" defer></script>
+  <script src="assets/intendance.js?v=20" defer></script>
+  <script src="assets/app.js?v=20" defer></script>
 </body>
 </html>

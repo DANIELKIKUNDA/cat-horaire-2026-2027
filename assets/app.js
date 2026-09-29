@@ -310,10 +310,40 @@ function lessonHtml(entry, type, isLive) {
   return `<div class="lesson ${isLive ? "is-live" : ""} ${entry.changed ? "is-changed" : ""}"><strong>${esc(entry.course)}${entry.changed ? ' <i>Modifié</i>' : ''}</strong><span>${esc(detail)}</span></div>`;
 }
 
-function emptyHtml(day, period, type) {
-  if (type === "teacher") return `<div class="free-slot">DISPONIBLE</div>`;
+function pedagogicalDayFor(teacherId) {
+  const direct = state.data?.jp?.[teacherId];
+  if (direct) return direct;
+  const wanted = String(teacherId || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const match = Object.entries(state.data?.jp || {}).find(([name]) => String(name).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === wanted);
+  return match?.[1] || "";
+}
+
+function emptyHtml(day, period, type, owner) {
+  if (type === "teacher") {
+    if (pedagogicalDayFor(owner) === day) return `<div class="free-slot pedagogical">JOURNÉE<br>PÉDAGOGIQUE</div>`;
+    return `<div class="free-slot">LIBRE</div>`;
+  }
   const messe = day === "Vendredi" && ["P1", "P2"].includes(period);
   return `<div class="free-slot ${messe ? "messe" : ""}">${messe ? "MESSE" : "LIBRE"}</div>`;
+}
+
+function recessAfter(periodIds, index) {
+  const nextId = periodIds[index + 1];
+  if (!nextId) return "";
+  const gaps = state.data.days.map((day) => {
+    const periods = state.data.periods[day] || [];
+    const current = periods.find((item) => item.id === periodIds[index]);
+    const next = periods.find((item) => item.id === nextId);
+    if (!current || !next) return null;
+    const end = current.time.split("-")[1];
+    const start = next.time.split("-")[0];
+    return timeToMinutes(start) > timeToMinutes(end) ? {day,end,start} : null;
+  }).filter(Boolean);
+  if (!gaps.length) return "";
+  const weekday = gaps.filter((gap) => gap.day !== "Samedi").map((gap) => `${gap.end}–${gap.start}`)[0];
+  const saturday = gaps.find((gap) => gap.day === "Samedi");
+  const detail = [weekday ? `Lun–Ven ${weekday}` : "", saturday ? `Sam. ${saturday.end}–${saturday.start}` : ""].filter(Boolean).join(" · ");
+  return `<tr class="recess-row"><td colspan="${state.data.days.length + 1}"><div class="recess-bar"><span></span>Récréation <small>${esc(detail)}</small><span></span></div></td></tr>`;
 }
 
 function renderSchedule(hostSelector, type, owner) {
@@ -322,20 +352,21 @@ function renderSchedule(hostSelector, type, owner) {
   if (!state.mobileDay || !data.days.includes(state.mobileDay)) state.mobileDay = data.days.includes(liveDay) ? liveDay : data.days[0];
   const periodIds = data.periods[data.days[0]].map((p) => p.id);
   const header = data.days.map((day) => `<th>${esc(day)}</th>`).join("");
-  const rows = periodIds.map((period) => {
+  const rows = periodIds.map((period,index) => {
     const weekdayTime = data.periods.Lundi.find((p) => p.id === period)?.time || "";
     const saturdayTime = data.periods.Samedi.find((p) => p.id === period)?.time || "";
     const cells = data.days.map((day) => {
       const entries = scheduleEntries(type, owner, day, period);
       const live = day === liveDay && current?.id === period;
-      return `<td>${entries.length ? entries.map((e) => lessonHtml(e, type, live)).join("") : emptyHtml(day, period, type)}</td>`;
+      return `<td>${entries.length ? entries.map((e) => lessonHtml(e, type, live)).join("") : emptyHtml(day, period, type, owner)}</td>`;
     }).join("");
-    return `<tr><td class="period-cell"><strong>${period}</strong><small>Lun–Ven ${weekdayTime}<br>Sam. ${saturdayTime}</small></td>${cells}</tr>`;
+    return `<tr><td class="period-cell"><strong>${period}</strong><small>Lun–Ven ${weekdayTime}<br>Sam. ${saturdayTime}</small></td>${cells}</tr>${recessAfter(periodIds,index)}`;
   }).join("");
   const desktop = `<div class="schedule-scroll"><table class="schedule-table"><thead><tr><th>Période</th>${header}</tr></thead><tbody>${rows}</tbody></table></div>`;
   const selectedDay=state.mobileDay;
   const dayLessons=data.periods[selectedDay].map((period)=>({period,entries:scheduleEntries(type,owner,selectedDay,period.id)})).filter(item=>item.entries.length);
-  const mobile = `<div class="schedule-mobile"><div class="mobile-day-tabs">${data.days.map(day=>{const count=data.periods[day].filter(period=>scheduleEntries(type,owner,day,period.id).length).length;return `<button type="button" data-mobile-day="${esc(day)}" class="${day===selectedDay?"active":""}"><span>${esc(day.slice(0,3))}</span><small>${count}</small></button>`;}).join("")}</div><section class="mobile-agenda"><header><div><small>Programme du jour</small><h4>${esc(selectedDay)}</h4></div><span>${dayLessons.length} cours</span></header><div class="mobile-agenda-list">${dayLessons.length?dayLessons.map(({period,entries})=>{const live=selectedDay===liveDay&&current?.id===period.id;return `<article class="mobile-agenda-item ${live?"is-live":""}"><div class="mobile-agenda-time"><strong>${esc(period.time.split("-")[0])}</strong><small>${esc(period.time.split("-")[1])}</small></div><span class="mobile-agenda-line"></span><div class="mobile-agenda-lesson">${entries.map(entry=>lessonHtml(entry,type,live)).join("")}<small>${esc(period.id)}</small></div></article>`;}).join(""):`<div class="mobile-agenda-empty"><span>☀</span><strong>Aucun cours</strong><p>Votre programme est libre pour cette journée.</p></div>`}</div></section></div>`;
+  const mobileEmpty=type==="teacher"&&pedagogicalDayFor(owner)===selectedDay?`<div class="mobile-agenda-empty pedagogical"><span>◆</span><strong>Journée pédagogique</strong><p>Cette journée est réservée à vos activités pédagogiques.</p></div>`:`<div class="mobile-agenda-empty"><span>☀</span><strong>Journée libre</strong><p>Aucun cours n’est programmé pour cette journée.</p></div>`;
+  const mobile = `<div class="schedule-mobile"><div class="mobile-day-tabs">${data.days.map(day=>{const count=data.periods[day].filter(period=>scheduleEntries(type,owner,day,period.id).length).length;return `<button type="button" data-mobile-day="${esc(day)}" class="${day===selectedDay?"active":""}"><span>${esc(day.slice(0,3))}</span><small>${count}</small></button>`;}).join("")}</div><section class="mobile-agenda"><header><div><small>Programme du jour</small><h4>${esc(selectedDay)}</h4></div><span>${dayLessons.length} cours</span></header><div class="mobile-agenda-list">${dayLessons.length?dayLessons.map(({period,entries})=>{const live=selectedDay===liveDay&&current?.id===period.id;return `<article class="mobile-agenda-item ${live?"is-live":""}"><div class="mobile-agenda-time"><strong>${esc(period.time.split("-")[0])}</strong><small>${esc(period.time.split("-")[1])}</small></div><span class="mobile-agenda-line"></span><div class="mobile-agenda-lesson">${entries.map(entry=>lessonHtml(entry,type,live)).join("")}<small>${esc(period.id)}</small></div></article>`;}).join(""):mobileEmpty}</div></section></div>`;
   const host=$(hostSelector);host.innerHTML = desktop + mobile;
   $$('[data-mobile-day]',host).forEach(button=>button.addEventListener("click",()=>{state.mobileDay=button.dataset.mobileDay;renderSchedule(hostSelector,type,owner);}));
 }
@@ -363,10 +394,12 @@ function renderTeacher() {
   localStorage.setItem("cat-selected-teacher", id);
   $("#teacher-select").value = id;
   const item = state.data.teachers.find((t) => t.id === id);
+  const pedagogicalDay = pedagogicalDayFor(id);
   $("#teacher-summary").innerHTML = `
     <div class="summary-card"><small>Enseignant</small><strong>${esc(id)}</strong></div>
     <div class="summary-card"><small>Charge pédagogique</small><strong>${item.hours} heures</strong></div>
-    <div class="summary-card"><small>Créneaux physiques</small><strong>${item.physicalSlots} périodes</strong></div>`;
+    <div class="summary-card"><small>Créneaux physiques</small><strong>${item.physicalSlots} périodes</strong></div>
+    <div class="summary-card"><small>Journée pédagogique</small><strong>${esc(pedagogicalDay || "Non renseignée")}</strong></div>`;
   renderSchedule("#teacher-schedule", "teacher", id);
   const exceptions = state.data.collisionExceptions.filter((e) => e.teacher_id === id);
   $("#teacher-note").innerHTML = exceptions.length ? `<div class="notice"><strong>Chevauchement institutionnel autorisé :</strong> ${exceptions.map((e) => `${esc(e.slots.join(", "))} · ${esc(e.assignment_ids.join(" + "))}`).join(" ; ")}</div>` : "";
