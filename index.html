@@ -8,7 +8,8 @@
   <title>Horaire Pro</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="manifest-v2.webmanifest">
-  <link rel="stylesheet" href="assets/styles.css?v=14">
+  <link rel="stylesheet" href="assets/styles.css?v=15">
+  <link rel="stylesheet" href="assets/intendance.css?v=15">
 </head>
 <body>
   <section class="loading-screen" id="loading-screen" aria-live="polite">
@@ -66,17 +67,18 @@
 
       <nav class="main-nav" aria-label="Navigation principale">
         <a href="#dashboard" data-view="dashboard" class="active"><span>⌂</span> Tableau de bord</a>
-        <a href="#agenda" data-view="agenda" data-multi-school hidden><span>▤</span> Agenda multi-écoles</a>
-        <a href="#classes" data-view="classes" data-full-schedule><span>▦</span> Horaire des classes</a>
-        <a href="#teachers" data-view="teachers"><span>♙</span> <b id="teacher-nav-label">Horaire des enseignants</b></a>
-        <a href="#operations" data-view="operations" data-operations><span>◉</span> Centre en direct</a>
-        <a href="#changes" data-view="changes" data-scheduler><span>⇄</span> Changements</a>
+        <a href="#agenda" data-view="agenda" data-multi-school hidden data-schedule-access><span>▤</span> Agenda multi-écoles</a>
+        <a href="#classes" data-view="classes" data-full-schedule data-schedule-access><span>▦</span> Horaire des classes</a>
+        <a href="#teachers" data-view="teachers" data-schedule-access><span>♙</span> <b id="teacher-nav-label">Horaire des enseignants</b></a>
+        <a href="#operations" data-view="operations" data-operations data-schedule-access><span>◉</span> Centre en direct</a>
+        <a href="#changes" data-view="changes" data-scheduler data-schedule-access><span>⇄</span> Changements</a>
         <a href="#announcements" data-view="announcements"><span>◈</span> Annonces <b class="nav-badge" id="announcement-nav-badge" hidden>0</b></a>
-        <a href="#assistant" data-view="assistant"><span>✦</span> Assistant horaire</a>
-        <a href="#stats" data-view="stats" data-management><span>▥</span> Statistiques</a>
+        <a href="#assistant" data-view="assistant" data-schedule-access><span>✦</span> Assistant horaire</a>
+        <a href="#stats" data-view="stats" data-management data-schedule-access><span>▥</span> Statistiques</a>
+        <a href="#intendance" data-view="intendance" data-intendance hidden><span>◫</span> Intendance</a>
         <a href="#accounts" data-view="accounts" data-account-manager-only><span>◎</span> Comptes</a>
-        <a href="#history" data-view="history" data-history><span>◴</span> Années et versions</a>
-        <a href="#documents" data-view="documents" data-management><span>▤</span> Documents officiels</a>
+        <a href="#history" data-view="history" data-history data-schedule-access><span>◴</span> Années et versions</a>
+        <a href="#documents" data-view="documents" data-management data-schedule-access><span>▤</span> Documents officiels</a>
         <a href="#settings" data-view="settings"><span>⚙</span> Paramètres</a>
       </nav>
 
@@ -260,9 +262,9 @@
         <section class="view" id="view-accounts" data-account-manager-only>
           <div class="section-intro"><div><span class="eyebrow">Sécurité</span><h2>Comptes et accès</h2><p>Contrôlez les accès sans exposer les mots de passe.</p></div><span class="security-chip">● RLS actif</span></div>
           <div class="account-kpis" id="account-kpis"></div>
-          <form class="panel smart-form membership-form" id="membership-form"><div class="panel-heading"><div><span class="eyebrow">Nouvelle adhésion</span><h3>Inviter ou associer une personne</h3></div></div><div class="form-grid"><label>Adresse email<input id="membership-email" type="email" required></label><label>Nom complet<input id="membership-name" required></label><label>Référence enseignant<input id="membership-teacher-ref" placeholder="Obligatoire seulement pour un enseignant"></label><label>Fonction dans l’école<input id="membership-position" placeholder="Ex. Préfet, DE"></label></div><fieldset class="role-checks"><legend>Rôles dans cette école</legend><label><input type="checkbox" name="membership-role" value="teacher"> Enseignant — horaire personnel</label><label><input type="checkbox" name="membership-role" value="direction"> Direction — pilotage complet</label><label><input type="checkbox" name="membership-role" value="admin"> Admin — comptes et sécurité</label><label><input type="checkbox" name="membership-role" value="scheduler"> Planificateur — changements d’horaire</label><label><input type="checkbox" name="membership-role" value="viewer"> Consultation — horaires en lecture seule</label></fieldset><div class="form-actions"><button class="primary-button" type="submit">Envoyer l’invitation</button><span id="membership-status"></span></div></form>
+          <form class="panel smart-form membership-form" id="membership-form"><div class="panel-heading"><div><span class="eyebrow">Nouvelle adhésion</span><h3>Inviter ou associer une personne</h3></div></div><div class="form-grid"><label>Adresse email<input id="membership-email" type="email" required></label><label>Nom complet<input id="membership-name" required></label><label>Référence enseignant<input id="membership-teacher-ref" placeholder="Obligatoire seulement pour un enseignant"></label><label>Fonction dans l’école<input id="membership-position" placeholder="Ex. Préfet, DE"></label></div><fieldset class="role-checks"><legend>Rôles dans cette école</legend><label><input type="checkbox" name="membership-role" value="teacher"> Enseignant — horaire personnel</label><label><input type="checkbox" name="membership-role" value="direction"> Direction — pilotage complet</label><label><input type="checkbox" name="membership-role" value="admin"> Admin — comptes et sécurité</label><label><input type="checkbox" name="membership-role" value="scheduler"> Planificateur — changements d’horaire</label><label><input type="checkbox" name="membership-role" value="viewer"> Consultation — horaires en lecture seule</label><label><input type="checkbox" name="membership-role" value="intendant"> Intendant — gestion des stocks et du patrimoine</label><label><input type="checkbox" name="membership-role" value="intendance_viewer"> Suivi Intendance — lecture seule</label></fieldset><div class="form-actions"><button class="primary-button" type="submit">Envoyer l’invitation</button><span id="membership-status"></span></div></form>
           <form class="panel smart-form membership-form" id="school-form" data-system-admin-only hidden><div class="panel-heading"><div><span class="eyebrow">Plateforme</span><h3>Ajouter un établissement</h3></div></div><div class="form-grid"><label>Nom officiel<input id="school-name" required></label><label>Nom court<input id="school-short-name" maxlength="20" required></label><label>Adresse<input id="school-address"></label><label>Première année scolaire<input id="school-year-label" placeholder="2027-2028"></label><label>Début<input id="school-year-start" type="date"></label><label>Fin<input id="school-year-end" type="date"></label></div><div class="form-actions"><button class="primary-button" type="submit">Créer l’établissement</button><span id="school-form-status"></span></div></form>
-          <article class="panel"><div class="account-toolbar"><input id="account-search" type="search" placeholder="Rechercher un compte…"><select id="account-role-filter" aria-label="Filtrer par rôle"><option value="">Tous les rôles</option><option value="teacher">Enseignants</option><option value="direction">Direction</option><option value="admin">Administrateurs</option><option value="scheduler">Planificateurs</option><option value="viewer">Consultation seule</option></select><select id="account-status-filter" aria-label="Filtrer par état"><option value="">Tous les états</option><option value="active">Actifs</option><option value="inactive">Suspendus</option></select><span id="account-summary"></span></div><div id="accounts-table" class="accounts-table"></div></article>
+          <article class="panel"><div class="account-toolbar"><input id="account-search" type="search" placeholder="Rechercher un compte…"><select id="account-role-filter" aria-label="Filtrer par rôle"><option value="">Tous les rôles</option><option value="teacher">Enseignants</option><option value="direction">Direction</option><option value="admin">Administrateurs</option><option value="scheduler">Planificateurs</option><option value="viewer">Consultation seule</option><option value="intendant">Intendants</option><option value="intendance_viewer">Suivi Intendance</option></select><select id="account-status-filter" aria-label="Filtrer par état"><option value="">Tous les états</option><option value="active">Actifs</option><option value="inactive">Suspendus</option></select><span id="account-summary"></span></div><div id="accounts-table" class="accounts-table"></div></article>
           <article class="panel audit-panel"><div class="panel-heading"><div><span class="eyebrow">Traçabilité</span><h3>Journal des actions</h3></div></div><div id="audit-list" class="activity-list"></div></article>
         </section>
 
@@ -305,6 +307,30 @@
           </article>
         </section>
 
+
+        <section class="view intendance-view" id="view-intendance" data-intendance hidden>
+          <div class="intendance-head">
+            <div><span class="eyebrow">Centre de travail</span><h2>Intendance</h2><p>Stocks, mouvements, patrimoine et inventaires de l’établissement.</p></div>
+            <div class="intendance-actions" data-intendance-write>
+              <button class="secondary-ink-button" type="button" data-intendance-action="receipt">+ Entrée</button>
+              <button class="primary-button" type="button" data-intendance-action="issue">− Sortie</button>
+            </div>
+          </div>
+          <div class="intendance-offline" id="intendance-offline" hidden>Mode hors ligne : dernières données synchronisées, saisie suspendue.</div>
+          <nav class="intendance-tabs" id="intendance-tabs" aria-label="Sections de l’intendance">
+            <button type="button" data-intendance-tab="overview" class="active">Vue d’ensemble</button>
+            <button type="button" data-intendance-tab="stock">Stock</button>
+            <button type="button" data-intendance-tab="receipts">Entrées</button>
+            <button type="button" data-intendance-tab="issues">Sorties</button>
+            <button type="button" data-intendance-tab="assets">Patrimoine</button>
+            <button type="button" data-intendance-tab="locations">Locaux</button>
+            <button type="button" data-intendance-tab="inventories">Inventaires</button>
+            <button type="button" data-intendance-tab="forecasts">Prévisions</button>
+            <button type="button" data-intendance-tab="reports">Rapports</button>
+          </nav>
+          <div class="intendance-content" id="intendance-content"><div class="intendance-loading">Chargement de l’intendance…</div></div>
+        </section>
+
         <section class="view" id="view-settings">
           <div class="section-intro"><div><span class="eyebrow">Préférences</span><h2>Mon compte</h2><p>Personnalisez votre expérience et protégez votre accès.</p></div></div>
           <div class="settings-grid">
@@ -320,14 +346,18 @@
 
   <div class="school-modal" id="school-modal" hidden><div class="school-modal-card"><img src="assets/horaire-pro-logo.svg" alt=""><span class="eyebrow">Vos établissements</span><h2>Choisissez votre espace</h2><p>Vous pourrez changer d’école à tout moment sans vous reconnecter.</p><div id="school-modal-list" class="school-modal-list"></div></div></div>
   <div class="school-modal" id="workspace-modal" hidden><div class="school-modal-card workspace-choice-card"><span class="choice-mark">HP</span><span class="eyebrow">Double fonction détectée</span><h2>Comment voulez-vous travailler ?</h2><p>Votre compte possède une fonction de direction et un horaire d’enseignant. Vous pourrez changer d’espace à tout moment.</p><div class="workspace-choices"><button type="button" data-workspace-choice="teacher"><span>♙</span><strong>Mon espace enseignant</strong><small>Mes cours, mon prochain créneau et mes annonces</small></button><button type="button" data-workspace-choice="direction"><span>◆</span><strong id="workspace-direction-label">Espace Direction</strong><small>École en direct, comptes, classes et documents</small></button></div></div></div>
-  <div class="school-modal" id="membership-modal" hidden><form class="school-modal-card smart-form" id="membership-edit-form"><span class="eyebrow">Adhésion à l’établissement</span><h2 id="membership-edit-name">Gérer un membre</h2><input id="membership-edit-user" type="hidden"><input id="membership-edit-id" type="hidden"><label>Référence enseignant<input id="membership-edit-teacher"></label><label>Fonction dans l’école<input id="membership-edit-position" placeholder="Ex. Préfet, DE"></label><fieldset class="role-checks"><legend>Rôles autorisés</legend><label><input type="checkbox" name="membership-edit-role" value="teacher"> Enseignant</label><label><input type="checkbox" name="membership-edit-role" value="direction"> Direction</label><label><input type="checkbox" name="membership-edit-role" value="admin"> Admin</label><label><input type="checkbox" name="membership-edit-role" value="scheduler"> Planificateur</label><label><input type="checkbox" name="membership-edit-role" value="viewer"> Consultation seule</label></fieldset><div class="credential-reset"><div><strong>Accès au compte</strong><small>Crée un mot de passe temporaire à usage unique. L’utilisateur devra le remplacer à sa prochaine connexion.</small></div><button class="secondary-ink-button" id="membership-reset-password" type="button">Réinitialiser le mot de passe</button></div><div class="one-time-secret" id="membership-temporary-password" hidden><span>Mot de passe temporaire — affiché une seule fois</span><div><code id="membership-temporary-password-value"></code><button type="button" id="membership-copy-password">Copier</button></div></div><div class="form-actions membership-edit-actions"><button class="secondary-ink-button danger" id="membership-remove" type="button">Retirer de l’école</button><button class="secondary-ink-button" id="membership-edit-close" type="button">Fermer</button><button class="primary-button" type="submit">Enregistrer</button></div><div id="membership-edit-status" class="login-status"></div></form></div>
+  <div class="school-modal" id="membership-modal" hidden><form class="school-modal-card smart-form" id="membership-edit-form"><span class="eyebrow">Adhésion à l’établissement</span><h2 id="membership-edit-name">Gérer un membre</h2><input id="membership-edit-user" type="hidden"><input id="membership-edit-id" type="hidden"><label>Référence enseignant<input id="membership-edit-teacher"></label><label>Fonction dans l’école<input id="membership-edit-position" placeholder="Ex. Préfet, DE"></label><fieldset class="role-checks"><legend>Rôles autorisés</legend><label><input type="checkbox" name="membership-edit-role" value="teacher"> Enseignant</label><label><input type="checkbox" name="membership-edit-role" value="direction"> Direction</label><label><input type="checkbox" name="membership-edit-role" value="admin"> Admin</label><label><input type="checkbox" name="membership-edit-role" value="scheduler"> Planificateur</label><label><input type="checkbox" name="membership-edit-role" value="viewer"> Consultation seule</label><label><input type="checkbox" name="membership-edit-role" value="intendant"> Intendant</label><label><input type="checkbox" name="membership-edit-role" value="intendance_viewer"> Suivi Intendance</label></fieldset><div class="credential-reset"><div><strong>Accès au compte</strong><small>Crée un mot de passe temporaire à usage unique. L’utilisateur devra le remplacer à sa prochaine connexion.</small></div><button class="secondary-ink-button" id="membership-reset-password" type="button">Réinitialiser le mot de passe</button></div><div class="one-time-secret" id="membership-temporary-password" hidden><span>Mot de passe temporaire — affiché une seule fois</span><div><code id="membership-temporary-password-value"></code><button type="button" id="membership-copy-password">Copier</button></div></div><div class="form-actions membership-edit-actions"><button class="secondary-ink-button danger" id="membership-remove" type="button">Retirer de l’école</button><button class="secondary-ink-button" id="membership-edit-close" type="button">Fermer</button><button class="primary-button" type="submit">Enregistrer</button></div><div id="membership-edit-status" class="login-status"></div></form></div>
   <div class="school-modal" id="password-required-modal" hidden><form class="school-modal-card smart-form" id="required-password-form"><span class="choice-mark">✓</span><span class="eyebrow">Sécurité du compte</span><h2>Créez votre mot de passe personnel</h2><p>Le mot de passe temporaire a ouvert votre session. Choisissez maintenant un mot de passe personnel d’au moins 10 caractères.</p><label>Nouveau mot de passe<input id="required-new-password" type="password" minlength="10" autocomplete="new-password" required></label><label>Confirmer le mot de passe<input id="required-confirm-password" type="password" minlength="10" autocomplete="new-password" required></label><button class="primary-button" type="submit">Sécuriser mon compte</button><div id="required-password-status" class="login-status"></div></form></div>
+
+
+  <dialog class="intendance-dialog" id="intendance-dialog"><form method="dialog" class="intendance-dialog-card" id="intendance-dialog-form"><header><div><span class="eyebrow" id="intendance-dialog-kicker">Intendance</span><h2 id="intendance-dialog-title">Nouvelle opération</h2></div><button type="button" id="intendance-dialog-close" aria-label="Fermer">×</button></header><div id="intendance-dialog-body"></div><div class="intendance-dialog-actions"><button class="secondary-ink-button" type="button" id="intendance-dialog-cancel">Annuler</button><button class="primary-button" type="submit" id="intendance-dialog-submit">Enregistrer</button></div><div class="login-status" id="intendance-dialog-status"></div></form></dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="assets/supabase.min.js" defer></script>
   <script src="config.js" defer></script>
-  <script src="assets/platform.js?v=14" defer></script>
-  <script src="assets/smart.js?v=14" defer></script>
-  <script src="assets/app.js?v=14" defer></script>
+  <script src="assets/platform.js?v=15" defer></script>
+  <script src="assets/smart.js?v=15" defer></script>
+  <script src="assets/intendance.js?v=15" defer></script>
+  <script src="assets/app.js?v=15" defer></script>
 </body>
 </html>

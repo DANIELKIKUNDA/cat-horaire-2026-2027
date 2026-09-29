@@ -72,10 +72,12 @@
       localStorage.setItem(LAST_CONTEXT, JSON.stringify({userId:cached.userId,schoolId:cached.schoolId,savedAt:cached.savedAt}));
       return cached.payload;
     }
-    const {data, error} = await client.rpc("get_my_platform_bootstrap", {p_school_id:schoolId});
+    let {data, error} = await client.rpc("get_my_platform_bootstrap", {p_school_id:schoolId});
     if (error) {
-      if (isMissingRpc(error)) return null;
-      throw error;
+      const shell = await client.rpc("get_intendance_platform_shell", {p_school_id:schoolId});
+      if (!shell.error) { data=shell.data; error=null; }
+      else if (isMissingRpc(error)) return null;
+      else throw error;
     }
     const selected = data.platform.selected_school_id;
     if (sessionUser?.user_metadata && "must_change_password" in sessionUser.user_metadata) data.profile.must_change_password=Boolean(sessionUser.user_metadata.must_change_password);

@@ -27,6 +27,9 @@ const canManageSchool = () => profileRoles().some((role) => managerRoles.has(rol
 const canManageAccounts = () => profileRoles().some((role) => ["direction", "admin"].includes(role));
 const canOperateSchool = () => isDirector() && profileRoles().some((role) => ["direction", "admin", "scheduler"].includes(role));
 const canManageSchoolContent = () => isDirector() && profileRoles().some((role) => ["direction", "admin"].includes(role));
+const hasScheduleAccess = () => Boolean(state.profile?.teacher_id) || profileRoles().some((role) => managerRoles.has(role));
+const canAccessIntendance = () => Boolean(state.profile?.is_system_admin) || profileRoles().some((role) => ["direction", "admin", "intendant", "intendance_viewer"].includes(role));
+const canWriteIntendance = () => Boolean(state.profile?.is_system_admin) || profileRoles().some((role) => ["direction", "admin", "intendant"].includes(role));
 const isDualRole = () => canManageSchool() && profileRoles().includes("teacher") && Boolean(state.profile?.teacher_id);
 const workspaceStorageKey = () => `horaire-pro-workspace:${state.profile?.id || "guest"}:${state.platform?.selected_school_id || "legacy"}`;
 const workspaceMode = () => {
@@ -85,6 +88,7 @@ const titles = {
   announcements: "Annonces et alertes",
   assistant: "Assistant CAT",
   stats: "Statistiques",
+  intendance: "Intendance",
   accounts: "Comptes et accès",
   history: "Années et versions",
   documents: "Documents officiels",
@@ -146,6 +150,8 @@ function populateSelect(select, items, valueKey = "id") {
 
 function setView(view, updateHash = true) {
   if (!titles[view]) view = "dashboard";
+  if (view === "intendance" && !canAccessIntendance()) view = "dashboard";
+  if (!hasScheduleAccess() && ["agenda", "classes", "teachers", "operations", "changes", "assistant", "stats", "history", "documents"].includes(view)) view = canAccessIntendance() ? "intendance" : "dashboard";
   if (view === "agenda" && (state.platform?.schools || []).length < 2) view = "dashboard";
   if (!isDirector() && ["classes", "operations", "changes", "stats", "accounts", "history", "documents"].includes(view)) view = "teachers";
   if (view === "operations" && !canOperateSchool()) view = "dashboard";
@@ -167,6 +173,11 @@ function renderStats() {
   if (!isDirector()) {
     const teacherId = state.profile?.teacher_id || state.data.teachers[0]?.id;
     const teacher = state.data.teachers.find((item) => item.id === teacherId) || state.data.teachers[0];
+    if (!teacher) {
+      const role = profileRoles().includes("intendant") ? "Gestionnaire" : "Consultation";
+      $("#stats-grid").innerHTML = [["◫", "Intendance", "Centre de travail"], ["✓", role, "Niveau d’accès"], ["◎", state.school?.short_name || "École", "Établissement actif"]].map(([icon,value,label]) => `<article class="stat-card"><span class="stat-icon">${icon}</span><div><strong>${esc(value)}</strong><small>${esc(label)}</small></div></article>`).join("");
+      return;
+    }
     const occupied = state.data.days.reduce((total, day) => total + state.data.periods[day].filter((period) => scheduleEntries("teacher", teacher.id, day, period.id).length).length, 0);
     const today = liveContext().day;
     const todayCount = state.data.periods[today]?.filter((period) => scheduleEntries("teacher", teacher.id, today, period.id).length).length || 0;
@@ -363,7 +374,7 @@ function showToast(message) {
 }
 
 function smartContext() {
-  return {state, isDirector, canManageSchool, canManageAccounts, canOperateSchool, canManageSchoolContent, isDualRole, workspaceMode, setWorkspaceMode, setView, renderTeacher, renderClass, showToast, esc, populateSelect, liveContext, scheduleEntries,
+  return {state, isDirector, canManageSchool, canManageAccounts, canOperateSchool, canManageSchoolContent, hasScheduleAccess, canAccessIntendance, canWriteIntendance, isDualRole, workspaceMode, setWorkspaceMode, setView, renderTeacher, renderClass, showToast, esc, populateSelect, liveContext, scheduleEntries,
     reload: loadPortal,
     displayTimetable: (data, timetable) => {
       state.data = data; state.activeTimetable = timetable; state.selectedClass = ""; state.selectedTeacher = state.profile?.teacher_id || "";
@@ -383,7 +394,8 @@ async function openDocument(path) {
 function renderMobileNav() {
   const host=$("#mobile-bottom-nav");if(!host)return;
   const roles=profileRoles();const multi=(state.platform?.schools||[]).length>1;let items;
-  if(!isDirector()) items=[["dashboard","⌂","Accueil"],["teachers","▤","Mon horaire"],[multi?"agenda":"assistant",multi?"▣":"✦",multi?"Agenda":"Assistant"],["announcements","◈","Annonces"],["settings","◎","Compte"]];
+  if(!hasScheduleAccess()&&canAccessIntendance()) items=[["dashboard","⌂","Accueil"],["intendance","◫","Intendance"],["announcements","◈","Annonces"],["settings","◎","Compte"],["menu","☰","Plus"]];
+  else if(!isDirector()) items=[["dashboard","⌂","Accueil"],["teachers","▤","Mon horaire"],[multi?"agenda":"assistant",multi?"▣":"✦",multi?"Agenda":"Assistant"],["announcements","◈","Annonces"],["settings","◎","Compte"]];
   else if(roles.includes("viewer")&&!roles.some(role=>["direction","admin","scheduler"].includes(role))) items=[["dashboard","⌂","Accueil"],["classes","▦","Classes"],[multi?"agenda":"teachers",multi?"▣":"♙",multi?"Agenda":"Profs"],["announcements","◈","Annonces"],["settings","◎","Compte"]];
   else if(roles.includes("scheduler")&&!roles.some(role=>["direction","admin"].includes(role))) items=[["dashboard","⌂","Accueil"],["classes","▦","Classes"],[multi?"agenda":"changes",multi?"▣":"⇄",multi?"Agenda":"Modifier"],["announcements","◈","Annonces"],["menu","☰","Plus"]];
   else items=[["dashboard","⌂","Accueil"],["classes","▦","Classes"],[multi?"agenda":"operations",multi?"▣":"◉",multi?"Agenda":"En direct"],["announcements","◈","Annonces"],["menu","☰","Plus"]];
@@ -408,10 +420,13 @@ function applyRole() {
   $$('[data-history]').forEach((element) => { element.hidden = !director; });
   $$('[data-multi-school]').forEach((element) => { element.hidden = (state.platform?.schools || []).length < 2; });
   $$('[data-account-manager-only]').forEach((element) => { element.hidden = !director || !canManageAccounts(); });
+  $$('[data-intendance]').forEach((element) => { element.hidden = !canAccessIntendance(); });
+  $$('[data-intendance-write]').forEach((element) => { element.hidden = !canWriteIntendance() || !navigator.onLine; });
+  $$('[data-schedule-access]').forEach((element) => { if (!hasScheduleAccess()) element.hidden = true; });
   $("#account-name").textContent = state.profile.full_name;
   $("#account-role").textContent = isDualRole()
     ? (director ? `${managementLabel} + enseignant · espace ${managementLabel}` : `${managementLabel} + enseignant · espace personnel`)
-    : (viewerOnly ? `${managementLabel} · consultation complète` : (director ? `${managementLabel} · accès de gestion` : "Enseignant · accès personnel"));
+    : (profileRoles().includes("intendant") ? "Intendant · gestion opérationnelle" : profileRoles().includes("intendance_viewer") ? "Intendance · lecture seule" : (viewerOnly ? `${managementLabel} · consultation complète` : (director ? `${managementLabel} · accès de gestion` : "Enseignant · accès personnel")));
   $("#account-avatar").textContent = state.profile.full_name.charAt(0).toUpperCase();
   titles.teachers = director ? "Horaire des enseignants" : "Mon horaire";
   titles.assistant = director ? "Assistant de l’école" : "Mon assistant horaire";
@@ -495,6 +510,7 @@ function bindEvents() {
   window.addEventListener("hashchange", () => setView(location.hash.slice(1) || "dashboard", false));
   window.CATSmart?.bind(smartContext());
   window.HoraireProPlatform?.bind(smartContext());
+  window.HoraireProIntendance?.bind(smartContext());
 }
 
 function assignPayload(payload) {
@@ -525,6 +541,7 @@ function renderPortal() {
   if (isDirector()) { renderQuickOptions(); renderClass(); renderDocuments(); }
   window.CATSmart?.render(smartContext());
   window.HoraireProPlatform?.render(smartContext());
+  window.HoraireProIntendance?.render(smartContext());
   updateClock();
   clearInterval(state.clockTimer);
   const updateLiveExperience = () => {
@@ -541,7 +558,8 @@ function renderPortal() {
   updateLiveExperience();
   state.clockTimer = setInterval(updateLiveExperience, 1_000);
   showPortal();
-  setView(location.hash.slice(1) || "dashboard", false);
+  const requestedView = location.hash.slice(1) || (!hasScheduleAccess() && canAccessIntendance() ? "intendance" : "dashboard");
+  setView(requestedView, false);
   if (isDualRole() && !localStorage.getItem(workspaceStorageKey())) $("#workspace-modal").hidden = false;
   if (state.profile?.must_change_password) $("#password-required-modal").hidden = false;
 }
