@@ -58,10 +58,10 @@
     const sid=schoolId();if(!sid)return;
     if(!force&&loadingSchool===sid&&data){renderTab();return;}
     loadingSchool=sid;const host=$("#intendance-content");if(host)host.innerHTML='<div class="intendance-loading">Synchronisation de l’intendance…</div>';
-    if(!navigator.onLine){const cached=loadCache();if(cached?.data){data=cached.data;renderTab();setOffline(true);return;}throw new Error("Aucune donnée Intendance disponible hors ligne.");}
+    if(!navigator.onLine){const cached=loadCache();if(cached?.data){data=cached.data;renderTab();renderDashboardSummary();setOffline(true);return;}throw new Error("Aucune donnée Intendance disponible hors ligne.");}
     const {data:payload,error}=await ctx.state.client.rpc("get_intendance_bootstrap",{p_school_id:sid});
-    if(error){const cached=loadCache();if(cached?.data){data=cached.data;renderTab();setOffline(true);ctx.showToast("Intendance affichée hors ligne");return;}throw error;}
-    data=payload;saveCache();setOffline(false);applyWriteAccess();renderTab();
+    if(error){const cached=loadCache();if(cached?.data){data=cached.data;renderTab();renderDashboardSummary();setOffline(true);ctx.showToast("Intendance affichée hors ligne");return;}throw error;}
+    data=payload;saveCache();setOffline(false);applyWriteAccess();renderTab();renderDashboardSummary();
   }
   function setOffline(value=!navigator.onLine){const el=$("#intendance-offline");if(el){el.hidden=!value;el.textContent="Mode hors ligne · les entrées et sorties sont enregistrées sur cet appareil puis synchronisées automatiquement.";}applyWriteAccess();}
   function applyWriteAccess(){$$("[data-intendance-write]").forEach(el=>{el.hidden=!canAuthor();});}
@@ -95,6 +95,14 @@
     const alerts=stockItems.filter(x=>toBig(x.minimum_stock_base)>0n&&totalStock(x.id)<=toBig(x.minimum_stock_base));
     const month=new Date().toISOString().slice(0,7);const movements=arr("documents").filter(x=>x.status==="posted"&&String(x.document_date).startsWith(month)).length;
     return `<div class="int-kpis"><article class="int-kpi"><span>▤</span><div><strong>${stockItems.length}</strong><small>Articles suivis</small></div></article><article class="int-kpi ${alerts.length?"warn":""}"><span>!</span><div><strong>${alerts.length}</strong><small>Alertes de stock</small></div></article><article class="int-kpi"><span>⇄</span><div><strong>${movements}</strong><small>Mouvements du mois</small></div></article><article class="int-kpi"><span>◇</span><div><strong>${arr("assets").filter(x=>x.status!=="disposed").length}</strong><small>Biens actifs</small></div></article></div>`;
+  }
+  function renderDashboardSummary(){
+    const host=$("#dashboard-intendance-content"),card=$("#dashboard-intendance-summary");if(!host||!card||!data)return;
+    const stockItems=arr("items").filter(item=>item.active&&item.tracking_mode==="quantity"),alerts=stockItems.filter(item=>toBig(item.minimum_stock_base)>0n&&totalStock(item.id)<=toBig(item.minimum_stock_base));
+    const month=new Date().toISOString().slice(0,7),movements=arr("documents").filter(doc=>doc.status==="posted"&&String(doc.document_date).startsWith(month));
+    const featured=stockItems.map(item=>({item,quantity:totalStock(item.id)})).sort((a,b)=>a.item.name.localeCompare(b.item.name,"fr")).slice(0,5),recent=arr("documents").slice(0,4);
+    host.innerHTML=`<div class="dashboard-module-kpis"><div><strong>${stockItems.length}</strong><small>Articles suivis</small></div><div class="${alerts.length?"warn":""}"><strong>${alerts.length}</strong><small>Alertes stock</small></div><div><strong>${movements.length}</strong><small>Mouvements du mois</small></div><div><strong>${arr("assets").filter(asset=>asset.status!=="disposed").length}</strong><small>Biens actifs</small></div></div><div class="dashboard-intendance-grid"><section><h4>État de stock</h4>${featured.map(({item,quantity})=>`<div class="dashboard-stock-row"><span><strong>${h(item.name)}</strong><small>${h(item.sku)}</small></span><b>${h(formatQuantity(item.id,quantity))}</b></div>`).join("")||'<div class="dashboard-module-empty">Aucun article suivi.</div>'}</section><section><h4>Derniers mouvements</h4>${recent.map(doc=>`<div class="dashboard-movement-row"><span>${["receipt","opening","adjustment_in"].includes(doc.movement_type)?"+":"−"}</span><div><strong>${h(label[doc.movement_type]||doc.movement_type)}</strong><small>${h(doc.document_number)} · ${fmtDate(doc.document_date)}</small></div></div>`).join("")||'<div class="dashboard-module-empty">Aucun mouvement enregistré.</div>'}</section></div>`;
+    card.hidden=false;
   }
   function recentActivity(){
     const docs=arr("documents").slice(0,7);if(!docs.length)return empty("⇄","Aucun mouvement","Enregistrez une entrée pour constituer le premier stock.");

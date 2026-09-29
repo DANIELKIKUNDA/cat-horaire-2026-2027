@@ -1,6 +1,6 @@
-const CACHE = "horaire-pro-shell-v16";
+const CACHE = "horaire-pro-shell-v17";
 const CORE = [
-  "./", "index.html", "assets/styles.css?v=16", "assets/intendance.css?v=16", "assets/supabase.min.js", "assets/platform.js?v=16", "assets/smart.js?v=16", "assets/intendance.js?v=16", "assets/app.js?v=16",
+  "./", "index.html", "assets/styles.css?v=17", "assets/intendance.css?v=17", "assets/supabase.min.js", "assets/platform.js?v=17", "assets/smart.js?v=17", "assets/intendance.js?v=17", "assets/app.js?v=17",
   "assets/horaire-pro-logo.svg", "assets/favicon.svg", "assets/icon-pro-192.png", "assets/icon-pro-512.png",
   "assets/icon-pro-maskable-512.png", "config.js", "manifest-v2.webmanifest"
 ];
@@ -51,3 +51,5 @@ self.addEventListener("notificationclick", (event) => {
     return clients.openWindow(target);
   }));
 });
+
+self.addEventListener("message",(event)=>{if(event.data?.type==="SKIP_WAITING")self.skipWaiting();});
