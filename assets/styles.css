@@ -23,15 +23,16 @@
 }
 
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; max-width: 100%; overflow-x: hidden; }
+html { scroll-behavior: smooth; max-width: 100%; overflow-x: hidden; overscroll-behavior: none; }
 body {
   margin: 0;
   background: var(--canvas);
   color: var(--ink);
   font-family: "DM Sans", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
-  max-width: 100%; overflow-x: hidden;
+  max-width: 100%; overflow-x: hidden; overscroll-behavior-y: none;
 }
+.app-shell,.main-content,.content-wrap{overscroll-behavior-y:none}
 button, input, select { font: inherit; }
 button, a, select { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; text-decoration: none; }

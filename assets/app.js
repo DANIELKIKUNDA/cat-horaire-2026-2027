@@ -105,6 +105,21 @@ function bindScrollToggle() {
   window.addEventListener("resize", () => updateScrollToggle(true));
 }
 
+function preventPullToRefresh() {
+  let startY=0,startX=0,startedAtTop=false;
+  document.addEventListener("touchstart",event=>{
+    if(event.touches.length!==1){startedAtTop=false;return;}
+    startY=event.touches[0].clientY;startX=event.touches[0].clientX;startedAtTop=window.scrollY<=0;
+  },{passive:true});
+  document.addEventListener("touchmove",event=>{
+    if(!startedAtTop||event.touches.length!==1)return;
+    const deltaY=event.touches[0].clientY-startY,deltaX=Math.abs(event.touches[0].clientX-startX);
+    if(deltaY>8&&deltaY>deltaX)event.preventDefault();
+  },{passive:false});
+  document.addEventListener("touchend",()=>{startedAtTop=false;},{passive:true});
+  document.addEventListener("touchcancel",()=>{startedAtTop=false;},{passive:true});
+}
+
 function setSidebarOpen(open) {
   const sidebar=$("#sidebar"),backdrop=$("#sidebar-backdrop");
   sidebar.classList.toggle("open",Boolean(open));
@@ -677,6 +692,7 @@ async function loadPortal(options = {}) {
 async function init() {
   bindEvents();
   bindScrollToggle();
+  preventPullToRefresh();
   if (localStorage.getItem("cat-theme") === "dark") {
     document.body.classList.add("dark"); $("#theme-toggle span").textContent = "Mode clair";
   }
