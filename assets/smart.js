@@ -1,7 +1,7 @@
 (() => {
   "use strict";
   let ctx;
-  let installPrompt = null;
+  let installPrompt = window.__pwaInstallPrompt || null;
   let realtimeStarted = false;
   let lastAnalysis = null;
   let lastPeriodToken = "";
@@ -312,7 +312,7 @@
   function startRealtime(){if(realtimeStarted)return;realtimeStarted=true;const selected=ctx.state.platform?.selected_school_id;const scoped=selected?{filter:`school_id=eq.${selected}`}:{ };ctx.state.client.channel("horaire-pro-private").on("postgres_changes",{event:"INSERT",schema:"public",table:"announcements",...scoped},payload=>{browserNotify("Nouvelle annonce Horaire Pro",payload.new.title||"Une annonce vient d’être publiée");setTimeout(()=>ctx.reload({schoolId:selected,silent:true}),900);}).on("postgres_changes",{event:"INSERT",schema:"public",table:"schedule_changes",...scoped},payload=>{browserNotify("Horaire actualisé",`${payload.new.course||"Un cours"} a été modifié.`);setTimeout(()=>ctx.reload({schoolId:selected,silent:true}),900);}).subscribe();}
   function isInstalled(){return window.matchMedia("(display-mode: standalone)").matches||window.navigator.standalone===true;}
   function syncInstallButtons(){const visible=!isInstalled();["#install-app-button","#settings-install"].forEach(selector=>{const button=$(selector);if(button)button.hidden=!visible;});}
-  async function installApp(){if(isInstalled()){syncInstallButtons();return;}if(installPrompt){installPrompt.prompt();const choice=await installPrompt.userChoice;installPrompt=null;if(choice.outcome==="accepted"){["#install-app-button","#settings-install"].forEach(selector=>{const button=$(selector);if(button)button.hidden=true;});}else syncInstallButtons();return;}const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);ctx.showToast(ios?"Dans Safari : Partager, puis « Sur l’écran d’accueil »":"Dans le menu du navigateur, choisissez « Installer Horaire Pro »");}
+  async function installApp(){if(isInstalled()){syncInstallButtons();return;}const prompt=installPrompt||window.__pwaInstallPrompt;if(prompt){prompt.prompt();const choice=await prompt.userChoice;installPrompt=null;window.__pwaInstallPrompt=null;if(choice.outcome==="accepted"){["#install-app-button","#settings-install"].forEach(selector=>{const button=$(selector);if(button)button.hidden=true;});}else syncInstallButtons();return;}const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);ctx.showToast(ios?"Dans Safari : Partager, puis « Sur l’écran d’accueil »":"Chrome prépare encore l’installation. Patientez quelques secondes puis réessayez.");}
   function cacheTeacherData(){if(ctx.isDirector())return;try{localStorage.setItem("cat-offline-last",ctx.state.profile.username);localStorage.setItem(`cat-offline-v2:${ctx.state.profile.username}`,JSON.stringify({savedAt:Date.now(),profile:ctx.state.profile,data:ctx.state.data}));}catch{}}
   function loadOffline(username){try{const key=username||localStorage.getItem("cat-offline-last");return key?JSON.parse(localStorage.getItem(`cat-offline-v2:${key}`)):null;}catch{return null;}}
 
@@ -328,8 +328,9 @@
     $("#announcement-audience")?.addEventListener("change",e=>$("#announcement-teacher-wrap").hidden=e.target.value!=="teacher");$("#announcement-form")?.addEventListener("submit",publishAnnouncement);$("#assistant-form")?.addEventListener("submit",askAssistant);$("#account-search")?.addEventListener("input",e=>renderAccounts(e.target.value));$("#account-role-filter")?.addEventListener("change",()=>renderAccounts());$("#account-status-filter")?.addEventListener("change",()=>renderAccounts());$("#password-form")?.addEventListener("submit",changePassword);$("#export-calendar")?.addEventListener("click",exportCalendar);$("#export-stats")?.addEventListener("click",exportStats);
   }
 
-  window.addEventListener("beforeinstallprompt",event=>{event.preventDefault();if(isInstalled())return;installPrompt=event;syncInstallButtons();$("#install-app-button")?.classList.add("ready");});
-  window.addEventListener("appinstalled",()=>{installPrompt=null;syncInstallButtons();ctx?.showToast("Horaire Pro est installée");});
+  window.addEventListener("beforeinstallprompt",event=>{event.preventDefault();if(isInstalled())return;installPrompt=event;window.__pwaInstallPrompt=event;syncInstallButtons();$("#install-app-button")?.classList.add("ready");});
+  window.addEventListener("horairepro-install-ready",()=>{installPrompt=window.__pwaInstallPrompt;syncInstallButtons();$("#install-app-button")?.classList.add("ready");});
+  window.addEventListener("appinstalled",()=>{installPrompt=null;window.__pwaInstallPrompt=null;syncInstallButtons();ctx?.showToast("Horaire Pro est installée");});
   window.matchMedia("(display-mode: standalone)").addEventListener?.("change",syncInstallButtons);
 
   window.CATSmart={render,bind,tick,scheduleEntries,loadOffline,kinshasaDate};

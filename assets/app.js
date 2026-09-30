@@ -727,6 +727,7 @@ async function init() {
   bindEvents();
   bindScrollToggle();
   preventPullToRefresh();
+  setupServiceWorker();
   if (localStorage.getItem("cat-theme") === "dark") {
     document.body.classList.add("dark"); $("#theme-toggle span").textContent = "Mode clair";
   }
@@ -796,7 +797,6 @@ async function init() {
   } else {
     showLogin();
   }
-  setupServiceWorker();
 }
 
 init();
