@@ -181,10 +181,10 @@
   }
 
   function renderRoles() {
-    const labels={teacher:"Enseignant",direction:"Direction",admin:"Admin",scheduler:"Planificateur",viewer:"Lecteur"};
+    const labels={teacher:"Enseignant",direction:"Direction",admin:"Admin",scheduler:"Planificateur",viewer:"Lecteur",discipline_director:"Directeur de discipline"};
     const roleText=roles().map((role)=>labels[role]||role).join(" · ");
     const position=ctx.state.profile?.position_title?.trim();
-    const dual=roles().includes("teacher")&&roles().some((role)=>["direction","admin","scheduler","viewer"].includes(role))&&Boolean(ctx.state.profile?.teacher_id);
+    const dual=roles().includes("teacher")&&roles().some((role)=>["direction","admin","scheduler","viewer","discipline_director"].includes(role))&&Boolean(ctx.state.profile?.teacher_id);
     if(roleText&&!dual)$("#account-role").textContent=position?`${position} · ${roleText}`:roleText;
     $$('[data-manager-only]').forEach((node)=>{node.hidden=!canManage();});
     $$('[data-system-admin-only]').forEach((node)=>{node.hidden=!ctx.state.profile?.is_system_admin;});

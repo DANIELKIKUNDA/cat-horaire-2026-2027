@@ -1,6 +1,6 @@
-const CACHE = "horaire-pro-shell-v23";
+const CACHE = "horaire-pro-shell-v24";
 const CORE = [
-  "./", "index.html", "assets/styles.css?v=23", "assets/intendance.css?v=23", "assets/supabase.min.js", "assets/platform.js?v=23", "assets/smart.js?v=23", "assets/intendance.js?v=23", "assets/app.js?v=23",
+  "./", "index.html", "assets/styles.css?v=24", "assets/intendance.css?v=24", "assets/supabase.min.js", "assets/platform.js?v=24", "assets/smart.js?v=24", "assets/intendance.js?v=24", "assets/app.js?v=24",
   "assets/horaire-pro-logo.svg", "assets/favicon.svg", "assets/icon-pro-192.png", "assets/icon-pro-512.png",
   "assets/icon-pro-maskable-512.png", "assets/login-campus-v1.webp", "config.js", "manifest-v2.webmanifest"
 ];
@@ -38,7 +38,9 @@ self.addEventListener("push", (event) => {
   try { message = {...message, ...event.data.json()}; } catch {}
   event.waitUntil(self.registration.showNotification(message.title, {
     body:message.body, icon:"assets/icon-pro-192.png", badge:"assets/icon-pro-192.png",
-    tag:message.tag || "horaire-pro-update", data:{url:message.url || "./"}
+    tag:message.tag || "horaire-pro-update", renotify:Boolean(message.renotify),
+    vibrate:message.vibrate || [350,140,350], timestamp:message.timestamp || Date.now(),
+    data:{url:message.url || "./",kind:message.kind || "information"}
   }));
 });
 

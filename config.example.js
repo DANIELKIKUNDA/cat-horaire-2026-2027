@@ -4,4 +4,7 @@ window.CAT_CONFIG = {
   supabaseUrl: "https://VOTRE-PROJET.supabase.co",
   supabaseAnonKey: "VOTRE_CLE_PUBLISHABLE",
   vapidPublicKey: "VOTRE_CLE_PUBLIQUE_VAPID",
+  intendanceSignatories: {
+    ECOLE: {name: "Nom de l’intendant", title: "Intendant"},
+  },
 };

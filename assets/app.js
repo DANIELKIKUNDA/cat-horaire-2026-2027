@@ -18,15 +18,17 @@ const state = {
   mobileDay: "",
   view: "dashboard",
   quickType: "class",
+  jpFilter: "all",
   selectedClass: localStorage.getItem("cat-selected-class") || "",
   selectedTeacher: localStorage.getItem("cat-selected-teacher") || "",
 };
 
-const managerRoles = new Set(["direction", "admin", "scheduler", "viewer"]);
+const managerRoles = new Set(["direction", "admin", "scheduler", "viewer", "discipline_director"]);
 const profileRoles = () => state.profile?.roles || (state.profile?.role === "director" ? ["direction"] : ["teacher"]);
 const normalizedPosition = () => String(state.profile?.position_title || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 const isPromoterAssistant = () => /assistant.*promoteur|promoteur.*assistant/.test(normalizedPosition());
 const isHrViewer = () => /(^|\s)drh($|\s)|ressources humaines/.test(normalizedPosition());
+const isDisciplineDirector = () => profileRoles().includes("discipline_director") || /directeur.*discipline/.test(normalizedPosition());
 const isFocusedObserver = () => isPromoterAssistant() || isHrViewer();
 const isSystemAdmin = () => Boolean(state.profile?.is_system_admin);
 const canManageSchool = () => isSystemAdmin() || profileRoles().some((role) => managerRoles.has(role));
@@ -58,7 +60,7 @@ function setWorkspaceMode(mode, remember = true) {
 
 function loginEmails(value) {
   const input = value.trim().toLowerCase();
-  return input.includes("@") ? [input] : [`${input}@cat-horaire.local`, `${input}@apn-horaire.local`];
+  return input.includes("@") ? [input] : [`${input}@cat-horaire.local`, `${input}@apn-horaire.local`, `${input}@providence-horaire.local`];
 }
 
 function showLogin(message = "", success = false) {
@@ -203,6 +205,7 @@ function setView(view, updateHash = true) {
   if (!titles[view]) view = "dashboard";
   if (isPromoterAssistant() && !["dashboard","intendance","teachers","classes","settings"].includes(view)) view = "dashboard";
   if (isHrViewer() && !["dashboard","teachers","settings"].includes(view)) view = "dashboard";
+  if (isDisciplineDirector() && !["dashboard","classes","teachers","announcements","settings"].includes(view)) view = "dashboard";
   if (view === "intendance" && !canAccessIntendance()) view = "dashboard";
   if (!hasScheduleAccess() && ["agenda", "classes", "teachers", "operations", "changes", "assistant", "stats", "history", "documents"].includes(view)) view = canAccessIntendance() ? "intendance" : "dashboard";
   if (view === "agenda" && (state.platform?.schools || []).length < 2) view = "dashboard";
@@ -315,12 +318,19 @@ function pedagogicalDayFor(teacherId) {
   if (direct) return direct;
   const wanted = String(teacherId || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   const match = Object.entries(state.data?.jp || {}).find(([name]) => String(name).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === wanted);
-  return match?.[1] || "";
+  if (match?.[1]) return match[1];
+  return state.data?.teachers?.find((teacher) => String(teacher.id).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === wanted)?.jp || "";
+}
+
+function pedagogicalDaysFor(teacherId) {
+  const value = pedagogicalDayFor(teacherId);
+  if (Array.isArray(value)) return value.map(String).filter(Boolean);
+  return String(value || "").split(/[,;/]/).map((day) => day.trim()).filter(Boolean);
 }
 
 function emptyHtml(day, period, type, owner) {
   if (type === "teacher") {
-    if (pedagogicalDayFor(owner) === day) return `<div class="free-slot pedagogical">JOURNÉE<br>PÉDAGOGIQUE</div>`;
+    if (pedagogicalDaysFor(owner).includes(day)) return `<div class="free-slot pedagogical">JOURNÉE<br>PÉDAGOGIQUE</div>`;
     return `<div class="free-slot">LIBRE</div>`;
   }
   const messe = day === "Vendredi" && ["P1", "P2"].includes(period);
@@ -378,7 +388,7 @@ function renderClass() {
   localStorage.setItem("cat-selected-class", id);
   $("#class-select").value = id;
   const item = state.data.classes.find((c) => c.id === id);
-  const free = 42 - item.hours;
+  const free = state.data.days.reduce((total, day) => total + (state.data.periods[day]?.length || 0), 0) - item.hours;
   $("#class-summary").innerHTML = `
     <div class="summary-card"><small>Classe sélectionnée</small><strong>${esc(id)}</strong></div>
     <div class="summary-card"><small>Volume hebdomadaire</small><strong>${item.hours} heures</strong></div>
@@ -386,7 +396,39 @@ function renderClass() {
   renderSchedule("#class-schedule", "class", id);
 }
 
+function renderJpDirectory() {
+  const panel = $("#jp-directory");
+  if (!panel) return;
+  panel.hidden = !isDirector();
+  if (!isDirector()) return;
+  const days = state.data.days || [];
+  const grouped = Object.fromEntries(days.map((day) => [day, []]));
+  const without = [];
+  state.data.teachers.forEach((teacher) => {
+    const teacherDays = pedagogicalDaysFor(teacher.id);
+    if (!teacherDays.length) without.push(teacher.id);
+    teacherDays.forEach((day) => { if (grouped[day]) grouped[day].push(teacher.id); });
+  });
+  const filter = state.jpFilter;
+  const visible = filter === "all" ? state.data.teachers : state.data.teachers.filter((teacher) => {
+    const teacherDays = pedagogicalDaysFor(teacher.id);
+    return filter === "none" ? !teacherDays.length : teacherDays.includes(filter);
+  });
+  const select = $("#teacher-select");
+  const current = state.selectedTeacher;
+  populateSelect(select, visible.length ? visible : state.data.teachers);
+  if (visible.some((teacher) => teacher.id === current)) select.value = current;
+  else if (visible.length) state.selectedTeacher = visible[0].id;
+  $("#jp-directory-count").textContent = filter === "all" ? `${state.data.teachers.length} enseignants` : `${visible.length} enseignant${visible.length > 1 ? "s" : ""}`;
+  $("#jp-directory-days").innerHTML = days.map((day) => `<button type="button" data-jp-day="${esc(day)}" class="${filter === day ? "active" : ""}"><strong>${grouped[day].length}</strong><span>${esc(day)}</span></button>`).join("") + `<button type="button" data-jp-day="none" class="${filter === "none" ? "active" : ""}"><strong>${without.length}</strong><span>Non renseignée</span></button>`;
+  const names = filter === "all" ? [] : visible.map((teacher) => teacher.id);
+  $("#jp-directory-names").innerHTML = filter === "all" ? `<p>Sélectionnez un jour pour afficher les enseignants concernés.</p>` : (names.length ? names.map((name) => `<button type="button" data-jp-teacher="${esc(name)}">${esc(name)}</button>`).join("") : `<p>Aucun enseignant dans ce filtre.</p>`);
+  $$('[data-jp-day]', panel).forEach((button) => button.addEventListener("click", () => { state.jpFilter = button.dataset.jpDay === state.jpFilter ? "all" : button.dataset.jpDay; renderTeacher(); }));
+  $$('[data-jp-teacher]', panel).forEach((button) => button.addEventListener("click", () => { state.selectedTeacher = button.dataset.jpTeacher; renderTeacher(); }));
+}
+
 function renderTeacher() {
+  renderJpDirectory();
   const preferred = state.profile?.teacher_id && state.data.teachers.some((teacher) => teacher.id === state.profile.teacher_id)
     ? state.profile.teacher_id : "";
   const id = state.selectedTeacher || preferred || state.data.teachers[0].id;
@@ -394,7 +436,7 @@ function renderTeacher() {
   localStorage.setItem("cat-selected-teacher", id);
   $("#teacher-select").value = id;
   const item = state.data.teachers.find((t) => t.id === id);
-  const pedagogicalDay = pedagogicalDayFor(id);
+  const pedagogicalDay = pedagogicalDaysFor(id).join(", ");
   $("#teacher-summary").innerHTML = `
     <div class="summary-card"><small>Enseignant</small><strong>${esc(id)}</strong></div>
     <div class="summary-card"><small>Charge pédagogique</small><strong>${item.hours} heures</strong></div>
@@ -461,7 +503,7 @@ function showToast(message) {
 }
 
 function smartContext() {
-  return {state, isDirector, canManageSchool, canManageAccounts, canOperateSchool, canManageSchoolContent, hasScheduleAccess, canAccessIntendance, canWriteIntendance, isDualRole, workspaceMode, setWorkspaceMode, setView, renderTeacher, renderClass, showToast, esc, populateSelect, liveContext, scheduleEntries,
+  return {state, isDirector, canManageSchool, canManageAccounts, canOperateSchool, canManageSchoolContent, hasScheduleAccess, canAccessIntendance, canWriteIntendance, isDualRole, workspaceMode, setWorkspaceMode, setView, renderTeacher, renderClass, showToast, esc, populateSelect, liveContext, scheduleEntries, schoolNow, timeToMinutes,
     reload: loadPortal,
     displayTimetable: (data, timetable) => {
       state.data = data; state.activeTimetable = timetable; state.selectedClass = ""; state.selectedTeacher = state.profile?.teacher_id || "";
@@ -483,6 +525,7 @@ function renderMobileNav() {
   const roles=profileRoles();const multi=(state.platform?.schools||[]).length>1;let items;
   if(isPromoterAssistant()) items=[["dashboard","⌂","Accueil"],["intendance","◫","Intendance"],["teachers","♙","Enseignants"],["classes","▦","Classes"],["settings","◎","Compte"]];
   else if(isHrViewer()) items=[["dashboard","⌂","Accueil"],["teachers","♙","Enseignants"],["settings","◎","Compte"]];
+  else if(isDisciplineDirector()) items=[["dashboard","⌂","Accueil"],["classes","▦","Classes"],["teachers","♙","Enseignants"],["announcements","◈","Annonces"],["settings","◎","Compte"]];
   else if(!hasScheduleAccess()&&canAccessIntendance()) items=[["dashboard","⌂","Accueil"],["intendance","◫","Intendance"],["announcements","◈","Annonces"],["settings","◎","Compte"],["menu","☰","Plus"]];
   else if(!isDirector()) items=[["dashboard","⌂","Accueil"],["teachers","▤","Mon horaire"],[multi?"agenda":"assistant",multi?"▣":"✦",multi?"Agenda":"Assistant"],["announcements","◈","Annonces"],["settings","◎","Compte"]];
   else if(roles.includes("viewer")&&!roles.some(role=>["direction","admin","scheduler"].includes(role))) items=[["dashboard","⌂","Accueil"],["classes","▦","Classes"],[multi?"agenda":"teachers",multi?"▣":"♙",multi?"Agenda":"Profs"],["announcements","◈","Annonces"],["settings","◎","Compte"]];
@@ -499,7 +542,7 @@ function applyRole() {
   const position = state.profile.position_title?.trim();
   const roles = profileRoles();
   const viewerOnly = !isSystemAdmin() && roles.includes("viewer") && !roles.some((role) => ["direction","admin","scheduler"].includes(role));
-  const managementLabel = isSystemAdmin() ? "Administrateur système" : position || (roles.includes("admin") ? "Administration" : roles.includes("scheduler") ? "Planification" : roles.includes("viewer") ? "Consultation" : "Direction");
+  const managementLabel = isSystemAdmin() ? "Administrateur système" : position || (roles.includes("discipline_director") ? "Directeur de discipline" : roles.includes("admin") ? "Administration" : roles.includes("scheduler") ? "Planification" : roles.includes("viewer") ? "Consultation" : "Direction");
   document.body.dataset.workspace = director ? "direction" : "teacher";
   document.body.dataset.primaryRole = isSystemAdmin() ? "system-admin" : isPromoterAssistant() ? "promoter-assistant" : isHrViewer() ? "hr" : (profileRoles().includes("viewer") && !profileRoles().some(role => ["direction","admin","scheduler"].includes(role)) ? "viewer" : (profileRoles().includes("scheduler") && !profileRoles().some(role => ["direction","admin"].includes(role)) ? "scheduler" : (director ? "management" : "teacher")));
   $$('[data-director-only]').forEach((element) => { element.hidden = !director; });
@@ -517,10 +560,14 @@ function applyRole() {
     const allowed = new Set(isPromoterAssistant() ? ["dashboard","intendance","teachers","classes","settings"] : ["dashboard","teachers","settings"]);
     $$(".main-nav [data-view]").forEach((link) => { link.hidden = !allowed.has(link.dataset.view); });
   }
+  if (isDisciplineDirector()) {
+    const allowed = new Set(["dashboard","classes","teachers","announcements","settings"]);
+    $$(".main-nav [data-view]").forEach((link) => { link.hidden = !allowed.has(link.dataset.view); });
+  }
   $("#account-name").textContent = state.profile.full_name;
   $("#account-role").textContent = isDualRole()
     ? (director ? `${managementLabel} + enseignant · espace ${managementLabel}` : `${managementLabel} + enseignant · espace personnel`)
-    : (isPromoterAssistant() ? "Assistant du promoteur · pilotage en lecture" : isHrViewer() ? "DRH · suivi des enseignants" : (profileRoles().includes("intendant") ? "Intendant · gestion opérationnelle" : profileRoles().includes("intendance_viewer") ? "Intendance · lecture seule" : (viewerOnly ? `${managementLabel} · consultation complète` : (director ? `${managementLabel} · accès de gestion` : "Enseignant · accès personnel"))));
+    : (isPromoterAssistant() ? "Assistant du promoteur · pilotage en lecture" : isHrViewer() ? "DRH · suivi des enseignants" : isDisciplineDirector() ? "Directeur de discipline · suivi des horaires" : (profileRoles().includes("intendant") ? "Intendant · gestion opérationnelle" : profileRoles().includes("intendance_viewer") ? "Intendance · lecture seule" : (viewerOnly ? `${managementLabel} · consultation complète` : (director ? `${managementLabel} · accès de gestion` : "Enseignant · accès personnel"))));
   $("#account-avatar").textContent = state.profile.full_name.charAt(0).toUpperCase();
   titles.teachers = director ? "Horaire des enseignants" : "Mon horaire";
   titles.assistant = director ? "Assistant de l’école" : "Mon assistant horaire";
