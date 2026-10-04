@@ -28,8 +28,8 @@
   </script>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="manifest-v2.webmanifest">
-  <link rel="stylesheet" href="assets/styles.css?v=24">
-  <link rel="stylesheet" href="assets/intendance.css?v=24">
+  <link rel="stylesheet" href="assets/styles.css?v=25">
+  <link rel="stylesheet" href="assets/intendance.css?v=25">
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Horaire Pro","url":"https://horairepro.de/","applicationCategory":"EducationalApplication","operatingSystem":"Web, Android, Windows, iOS","description":"Plateforme sécurisée de gestion des horaires scolaires et de l’intendance."}</script>
 </head>
 <body>
@@ -378,13 +378,14 @@
 
   <dialog class="pwa-install-dialog" id="pwa-install-dialog"><form method="dialog"><button class="pwa-install-close" type="submit" aria-label="Fermer">×</button><img src="assets/icon-pro-192.png" alt=""><span class="eyebrow">Application mobile</span><h2>Installer Horaire Pro</h2><p id="pwa-install-status">Chrome vérifie l’application et prépare l’installation sécurisée.</p><div class="pwa-install-progress"><i id="pwa-install-progress-bar"></i></div><small id="pwa-install-detail">Cette préparation peut prendre jusqu’à 30 secondes lors de la première installation.</small><button class="primary-button" id="pwa-install-confirm" type="button" disabled>Préparation par Chrome…</button></form></dialog>
 
+  <aside class="lesson-alert-onboarding" id="lesson-alert-onboarding" hidden role="dialog" aria-modal="true" aria-labelledby="lesson-alert-onboarding-title"><div class="lesson-alert-onboarding-icon">◉</div><div><span class="eyebrow">Assistant ponctualité</span><h2 id="lesson-alert-onboarding-title">Ne manquez plus le début d’un cours</h2><p>Horaire Pro vous avertira automatiquement deux minutes avant chaque cours, même lorsque l’application est fermée.</p><small>Une seule autorisation est nécessaire sur ce téléphone.</small><div><button class="secondary-ink-button" id="lesson-alert-later" type="button">Plus tard</button><button class="primary-button" id="lesson-alert-approve" type="button">Autoriser les alertes</button></div></div></aside>
   <aside class="app-update-banner" id="app-update-banner" hidden role="status" aria-live="assertive"><span>↻</span><div><strong>Une nouvelle version est disponible</strong><small>Vos données sont conservées. Actualisez pour profiter des améliorations.</small></div><button type="button" id="apply-app-update">Mettre à jour maintenant</button><button type="button" id="dismiss-app-update" aria-label="Plus tard">×</button></aside>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="assets/supabase.min.js" defer></script>
   <script src="config.js" defer></script>
-  <script src="assets/platform.js?v=24" defer></script>
-  <script src="assets/smart.js?v=24" defer></script>
-  <script src="assets/intendance.js?v=24" defer></script>
-  <script src="assets/app.js?v=24" defer></script>
+  <script src="assets/platform.js?v=25" defer></script>
+  <script src="assets/smart.js?v=25" defer></script>
+  <script src="assets/intendance.js?v=25" defer></script>
+  <script src="assets/app.js?v=25" defer></script>
 </body>
 </html>
