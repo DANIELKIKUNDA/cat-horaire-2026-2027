@@ -324,13 +324,25 @@ function pedagogicalDayFor(teacherId) {
 
 function pedagogicalDaysFor(teacherId) {
   const value = pedagogicalDayFor(teacherId);
-  if (Array.isArray(value)) return value.map(String).filter(Boolean);
-  return String(value || "").split(/[,;/]/).map((day) => day.trim()).filter(Boolean);
+  const slotDays = Object.keys(pedagogicalSlotsFor(teacherId));
+  const labels = Array.isArray(value) ? value.map(String) : String(value || "").split(/[,;/]/);
+  const knownDays = (state.data?.days || []).filter((day) => labels.some((label) => label.includes(day)));
+  return [...new Set([...slotDays, ...knownDays])];
+}
+
+function pedagogicalSlotsFor(teacherId) {
+  const direct = state.data?.jpSlots?.[teacherId];
+  if (direct) return direct;
+  const wanted = String(teacherId || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const match = Object.entries(state.data?.jpSlots || {}).find(([name]) => String(name).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === wanted);
+  return match?.[1] || {};
 }
 
 function emptyHtml(day, period, type, owner) {
   if (type === "teacher") {
-    if (pedagogicalDaysFor(owner).includes(day)) return `<div class="free-slot pedagogical">JOURNÉE<br>PÉDAGOGIQUE</div>`;
+    const partial = pedagogicalSlotsFor(owner);
+    const isPartial = Object.keys(partial).length > 0;
+    if ((isPartial && (partial[day] || []).includes(period)) || (!isPartial && pedagogicalDaysFor(owner).includes(day))) return `<div class="free-slot pedagogical">JOURNÉE<br>PÉDAGOGIQUE</div>`;
     return `<div class="free-slot">LIBRE</div>`;
   }
   const messe = day === "Vendredi" && ["P1", "P2"].includes(period);
