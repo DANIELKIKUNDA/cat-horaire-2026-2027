@@ -60,7 +60,12 @@ function setWorkspaceMode(mode, remember = true) {
 
 function loginEmails(value) {
   const input = value.trim().toLowerCase();
-  return input.includes("@") ? [input] : [`${input}@cat-horaire.local`, `${input}@apn-horaire.local`, `${input}@providence-horaire.local`];
+  return input.includes("@") ? [input] : [
+    `${input}@cat-horaire.local`,
+    `${input}@apn-horaire.local`,
+    `${input}@providence-horaire.local`,
+    `${input}@excellencia-horaire.local`,
+  ];
 }
 
 function showLogin(message = "", success = false) {
