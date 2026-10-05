@@ -1,6 +1,6 @@
 ﻿(() => {
   "use strict";
-  let ctx=null, data=null, activeTab="overview", loadingSchool="", submitHandler=null, syncing=false, reportState={cadence:"month",date:""};
+  let ctx=null, data=null, activeTab="overview", loadingSchool="", submitHandler=null, syncing=false, lastFetchedAt=0, reportState={cadence:"month",date:""};
   const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
   const h=(v)=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
   const roles=()=>ctx?.state.profile?.roles||[];
@@ -66,12 +66,12 @@
   async function fetchData(force=false){
     if(!canRead())return;
     const sid=schoolId();if(!sid)return;
-    if(!force&&loadingSchool===sid&&data){renderTab();return;}
+    if(!force&&loadingSchool===sid&&data&&Date.now()-lastFetchedAt<15000){renderTab();return;}
     loadingSchool=sid;const host=$("#intendance-content");if(host)host.innerHTML='<div class="intendance-loading">Synchronisation de l’intendance…</div>';
     if(!navigator.onLine){const cached=loadCache();if(cached?.data){data=cached.data;renderTab();renderDashboardSummary();setOffline(true);return;}throw new Error("Aucune donnée Intendance disponible hors ligne.");}
     const {data:payload,error}=await ctx.state.client.rpc("get_intendance_bootstrap",{p_school_id:sid});
     if(error){const cached=loadCache();if(cached?.data){data=cached.data;renderTab();renderDashboardSummary();setOffline(true);ctx.showToast("Intendance affichée hors ligne");return;}throw error;}
-    data=payload;saveCache();setOffline(false);applyWriteAccess();renderTab();renderDashboardSummary();
+    data=payload;lastFetchedAt=Date.now();saveCache();setOffline(false);applyWriteAccess();renderTab();renderDashboardSummary();
   }
   function setOffline(value=!navigator.onLine){const el=$("#intendance-offline");if(el){el.hidden=!value;el.textContent="Mode hors ligne · les entrées et sorties sont enregistrées sur cet appareil puis synchronisées automatiquement.";}applyWriteAccess();}
   function applyWriteAccess(){$$("[data-intendance-write]").forEach(el=>{el.hidden=!canAuthor();});}
@@ -223,6 +223,7 @@
   function handleClick(event){
     const tab=event.target.closest("[data-intendance-tab]");if(tab){selectTab(tab.dataset.intendanceTab);return;}
     const jump=event.target.closest("[data-intendance-tab-jump]");if(jump){selectTab(jump.dataset.intendanceTabJump);return;}
+    if(event.target.closest("[data-intendance-refresh]")){refresh("Stock et mouvements actualisés").catch(error=>ctx.showToast(error.message||String(error)));return;}
     const action=event.target.closest("[data-intendance-action]")?.dataset.intendanceAction;if(action){({item:openItem,receipt:()=>openMovement("receipt"),issue:()=>openMovement("issue"),asset:()=>openAsset(),location:()=>openReference("location"),category:()=>openReference("category"),unit:()=>openReference("unit"),partner:()=>openReference("partner"),inventory:openInventory}[action]||(()=>{}))();return;}
     const edit=event.target.closest("[data-edit-asset]");if(edit){openAsset(edit.dataset.editAsset);return;}
     const printInventoryButton=event.target.closest("[data-print-inventory]");if(printInventoryButton){printInventory(printInventoryButton.dataset.printInventory);return;}
@@ -237,8 +238,9 @@
   }
   function handleFilter(event){if(["int-report-cadence","int-report-date"].includes(event.target.id)&&event.type==="change"){reportState.cadence=$("#int-report-cadence").value;reportState.date=$("#int-report-date").value;renderTab();return;}if(["int-stock-search","int-stock-location"].includes(event.target.id)){const search=$("#int-stock-search")?.value||"",loc=$("#int-stock-location")?.value||"";renderTab();if($("#int-stock-search"))$("#int-stock-search").value=search;if($("#int-stock-location"))$("#int-stock-location").value=loc;return;}if(event.target.matches("[data-doc-search],[data-doc-status]")){const q=($("[data-doc-search]")?.value||"").toLowerCase(),status=$("[data-doc-status]")?.value||"";$$('[data-doc-row]').forEach(row=>row.hidden=Boolean((q&&!row.dataset.search.includes(q))||(status&&row.dataset.status!==status)));}if(["int-asset-search","int-asset-status"].includes(event.target.id)){const q=($("#int-asset-search")?.value||"").toLowerCase(),status=$("#int-asset-status")?.value||"";$$('[data-asset-row]').forEach(row=>row.hidden=Boolean((q&&!row.dataset.search.includes(q))||(status&&row.dataset.status!==status)));}}
   async function submitDialog(event){event.preventDefault();if(!submitHandler)return;const button=$("#intendance-dialog-submit"),status=$("#intendance-dialog-status");button.disabled=true;status.textContent="Enregistrement…";try{const result=await submitHandler();if(result!==false)closeDialog();}catch(error){status.textContent=error.message||String(error);}finally{button.disabled=false;}}
-  function bind(context){ctx=context;$("#intendance-tabs")?.addEventListener("click",handleClick);$("#intendance-content")?.addEventListener("click",handleClick);$("#intendance-content")?.addEventListener("input",handleFilter);$("#intendance-content")?.addEventListener("change",handleFilter);$$('[data-intendance-action]',$("#view-intendance")).forEach(b=>b.addEventListener("click",handleClick));$("#intendance-dialog-form")?.addEventListener("submit",submitDialog);$("#intendance-dialog-close")?.addEventListener("click",closeDialog);$("#intendance-dialog-cancel")?.addEventListener("click",closeDialog);window.addEventListener("online",()=>{setOffline(false);if(ctx?.state&&canRead())syncQueue().then(()=>fetchData(true)).catch(e=>ctx.showToast(e.message));});window.addEventListener("offline",()=>{setOffline(true);renderTab();});}
+  function refreshWhenActive(){if(document.visibilityState==="visible"&&navigator.onLine&&ctx?.state&&canRead()&&Date.now()-lastFetchedAt>=15000)fetchData(true).catch(error=>ctx.showToast(error.message||String(error)));}
+  function bind(context){ctx=context;$("#intendance-tabs")?.addEventListener("click",handleClick);$("#intendance-content")?.addEventListener("click",handleClick);$("#intendance-content")?.addEventListener("input",handleFilter);$("#intendance-content")?.addEventListener("change",handleFilter);$$('[data-intendance-action]',$("#view-intendance")).forEach(b=>b.addEventListener("click",handleClick));$("#intendance-dialog-form")?.addEventListener("submit",submitDialog);$("#intendance-dialog-close")?.addEventListener("click",closeDialog);$("#intendance-dialog-cancel")?.addEventListener("click",closeDialog);window.addEventListener("online",()=>{setOffline(false);if(ctx?.state&&canRead())syncQueue().then(()=>fetchData(true)).catch(e=>ctx.showToast(e.message));});window.addEventListener("offline",()=>{setOffline(true);renderTab();});window.addEventListener("focus",refreshWhenActive);document.addEventListener("visibilitychange",refreshWhenActive);}
   function render(context){ctx=context;if(!canRead())return;applyWriteAccess();fetchData().then(()=>{if(navigator.onLine)syncQueue();}).catch(error=>{const host=$("#intendance-content");if(host)host.innerHTML=empty("!","Intendance indisponible",error.message||String(error));});}
-  function onSchoolChange(){data=null;loadingSchool="";if(canRead())fetchData(true).catch(e=>ctx.showToast(e.message));}
+  function onSchoolChange(){data=null;loadingSchool="";lastFetchedAt=0;if(canRead())fetchData(true).catch(e=>ctx.showToast(e.message));}
   window.HoraireProIntendance={bind,render,onSchoolChange,formatQuantity:(quantity,conversions,unitLookup={})=>{let remaining=toBig(quantity),parts=[];for(const c of [...conversions].sort((a,b)=>Number(toBig(b.multiplier_to_base)-toBig(a.multiplier_to_base)))){const m=toBig(c.multiplier_to_base),n=m>0n?remaining/m:0n;if(n>0n){parts.push(`${n} ${unitLookup[c.unit_id]||c.unit_id}`);remaining%=m;}}return parts.join(" + ")||"0";}};
 })();
