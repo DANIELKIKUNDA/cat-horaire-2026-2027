@@ -24,11 +24,13 @@ const state = {
 };
 
 const managerRoles = new Set(["direction", "admin", "scheduler", "viewer", "discipline_director"]);
+const APN_SCHOOL_ID = "44444444-4444-4444-8444-444444444444";
 const profileRoles = () => state.profile?.roles || (state.profile?.role === "director" ? ["direction"] : ["teacher"]);
 const normalizedPosition = () => String(state.profile?.position_title || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 const isPromoterAssistant = () => /assistant.*promoteur|promoteur.*assistant/.test(normalizedPosition());
 const isHrViewer = () => /(^|\s)drh($|\s)|ressources humaines/.test(normalizedPosition());
 const isDisciplineDirector = () => profileRoles().includes("discipline_director") || /directeur.*discipline/.test(normalizedPosition());
+const isScheduleObserver = () => profileRoles().includes("viewer") && /coordonnateur|gestionnaire/.test(normalizedPosition());
 const isFocusedObserver = () => isPromoterAssistant() || isHrViewer();
 const isSystemAdmin = () => Boolean(state.profile?.is_system_admin);
 const canManageSchool = () => isSystemAdmin() || profileRoles().some((role) => managerRoles.has(role));
@@ -36,8 +38,9 @@ const canManageAccounts = () => isSystemAdmin() || profileRoles().some((role) =>
 const canOperateSchool = () => isDirector() && (isSystemAdmin() || profileRoles().some((role) => ["direction", "admin", "scheduler"].includes(role)));
 const canManageSchoolContent = () => isDirector() && (isSystemAdmin() || profileRoles().some((role) => ["direction", "admin"].includes(role)));
 const hasScheduleAccess = () => isSystemAdmin() || Boolean(state.profile?.teacher_id) || profileRoles().some((role) => managerRoles.has(role));
-const canAccessIntendance = () => Boolean(state.profile?.is_system_admin) || profileRoles().some((role) => ["direction", "admin", "intendant", "intendance_viewer"].includes(role));
-const canWriteIntendance = () => Boolean(state.profile?.is_system_admin) || profileRoles().some((role) => ["direction", "admin", "intendant"].includes(role));
+const isApnSchool = () => (state.platform?.selected_school_id || state.school?.id) === APN_SCHOOL_ID;
+const canAccessIntendance = () => isApnSchool() && (Boolean(state.profile?.is_system_admin) || profileRoles().some((role) => ["intendant", "intendance_viewer"].includes(role)));
+const canWriteIntendance = () => isApnSchool() && (Boolean(state.profile?.is_system_admin) || profileRoles().includes("intendant"));
 const isDualRole = () => canManageSchool() && Boolean(state.profile?.teacher_id) && (isSystemAdmin() || profileRoles().includes("teacher"));
 const workspaceStorageKey = () => `horaire-pro-workspace:${state.profile?.id || "guest"}:${state.platform?.selected_school_id || "legacy"}`;
 const workspaceMode = () => {
@@ -211,6 +214,7 @@ function setView(view, updateHash = true) {
   if (isPromoterAssistant() && !["dashboard","intendance","teachers","classes","settings"].includes(view)) view = "dashboard";
   if (isHrViewer() && !["dashboard","teachers","settings"].includes(view)) view = "dashboard";
   if (isDisciplineDirector() && !["dashboard","classes","teachers","announcements","settings"].includes(view)) view = "dashboard";
+  if (isScheduleObserver() && !["dashboard","classes","teachers","settings"].includes(view)) view = "dashboard";
   if (view === "intendance" && !canAccessIntendance()) view = "dashboard";
   if (!hasScheduleAccess() && ["agenda", "classes", "teachers", "operations", "changes", "assistant", "stats", "history", "documents"].includes(view)) view = canAccessIntendance() ? "intendance" : "dashboard";
   if (view === "agenda" && (state.platform?.schools || []).length < 2) view = "dashboard";
@@ -385,7 +389,11 @@ function renderSchedule(hostSelector, type, owner) {
     const cells = data.days.map((day) => {
       const entries = scheduleEntries(type, owner, day, period);
       const live = day === liveDay && current?.id === period;
-      return `<td>${entries.length ? entries.map((e) => lessonHtml(e, type, live)).join("") : emptyHtml(day, period, type, owner)}</td>`;
+      const overlap = entries.length > 1;
+      const content = entries.length
+        ? `<div class="lesson-stack ${overlap ? "has-overlap" : ""}">${overlap ? `<div class="overlap-label">${entries.length} cours simultanés</div>` : ""}${entries.map((e) => lessonHtml(e, type, live)).join("")}</div>`
+        : emptyHtml(day, period, type, owner);
+      return `<td class="${overlap ? "overlap-cell" : ""}">${content}</td>`;
     }).join("");
     return `<tr><td class="period-cell"><strong>${period}</strong><small>Lun–Ven ${weekdayTime}<br>Sam. ${saturdayTime}</small></td>${cells}</tr>${recessAfter(periodIds,index)}`;
   }).join("");
@@ -393,7 +401,7 @@ function renderSchedule(hostSelector, type, owner) {
   const selectedDay=state.mobileDay;
   const dayLessons=data.periods[selectedDay].map((period)=>({period,entries:scheduleEntries(type,owner,selectedDay,period.id)})).filter(item=>item.entries.length);
   const mobileEmpty=type==="teacher"&&pedagogicalDayFor(owner)===selectedDay?`<div class="mobile-agenda-empty pedagogical"><span>◆</span><strong>Journée pédagogique</strong><p>Cette journée est réservée à vos activités pédagogiques.</p></div>`:`<div class="mobile-agenda-empty"><span>☀</span><strong>Journée libre</strong><p>Aucun cours n’est programmé pour cette journée.</p></div>`;
-  const mobile = `<div class="schedule-mobile"><div class="mobile-day-tabs">${data.days.map(day=>{const count=data.periods[day].filter(period=>scheduleEntries(type,owner,day,period.id).length).length;return `<button type="button" data-mobile-day="${esc(day)}" class="${day===selectedDay?"active":""}"><span>${esc(day.slice(0,3))}</span><small>${count}</small></button>`;}).join("")}</div><section class="mobile-agenda"><header><div><small>Programme du jour</small><h4>${esc(selectedDay)}</h4></div><span>${dayLessons.length} cours</span></header><div class="mobile-agenda-list">${dayLessons.length?dayLessons.map(({period,entries})=>{const live=selectedDay===liveDay&&current?.id===period.id;return `<article class="mobile-agenda-item ${live?"is-live":""}"><div class="mobile-agenda-time"><strong>${esc(period.time.split("-")[0])}</strong><small>${esc(period.time.split("-")[1])}</small></div><span class="mobile-agenda-line"></span><div class="mobile-agenda-lesson">${entries.map(entry=>lessonHtml(entry,type,live)).join("")}<small>${esc(period.id)}</small></div></article>`;}).join(""):mobileEmpty}</div></section></div>`;
+  const mobile = `<div class="schedule-mobile"><div class="mobile-day-tabs">${data.days.map(day=>{const count=data.periods[day].reduce((sum,period)=>sum+scheduleEntries(type,owner,day,period.id).length,0);return `<button type="button" data-mobile-day="${esc(day)}" class="${day===selectedDay?"active":""}"><span>${esc(day.slice(0,3))}</span><small>${count}</small></button>`;}).join("")}</div><section class="mobile-agenda"><header><div><small>Programme du jour</small><h4>${esc(selectedDay)}</h4></div><span>${dayLessons.reduce((sum,item)=>sum+item.entries.length,0)} cours</span></header><div class="mobile-agenda-list">${dayLessons.length?dayLessons.map(({period,entries})=>{const live=selectedDay===liveDay&&current?.id===period.id;const overlap=entries.length>1;return `<article class="mobile-agenda-item ${live?"is-live":""} ${overlap?"has-overlap":""}"><div class="mobile-agenda-time"><strong>${esc(period.time.split("-")[0])}</strong><small>${esc(period.time.split("-")[1])}</small></div><span class="mobile-agenda-line"></span><div class="mobile-agenda-lesson">${overlap?`<div class="overlap-label">${entries.length} cours simultanés</div>`:""}${entries.map(entry=>lessonHtml(entry,type,live)).join("")}<small>${esc(period.id)}</small></div></article>`;}).join(""):mobileEmpty}</div></section></div>`;
   const host=$(hostSelector);host.innerHTML = desktop + mobile;
   $$('[data-mobile-day]',host).forEach(button=>button.addEventListener("click",()=>{state.mobileDay=button.dataset.mobileDay;renderSchedule(hostSelector,type,owner);}));
 }
@@ -542,6 +550,7 @@ function renderMobileNav() {
   const roles=profileRoles();const multi=(state.platform?.schools||[]).length>1;let items;
   if(isPromoterAssistant()) items=[["dashboard","⌂","Accueil"],["intendance","◫","Intendance"],["teachers","♙","Enseignants"],["classes","▦","Classes"],["settings","◎","Compte"]];
   else if(isHrViewer()) items=[["dashboard","⌂","Accueil"],["teachers","♙","Enseignants"],["settings","◎","Compte"]];
+  else if(isScheduleObserver()) items=[["dashboard","⌂","En direct"],["classes","▦","Classes"],["teachers","♙","Enseignants"],["settings","◎","Compte"]];
   else if(isDisciplineDirector()) items=[["dashboard","⌂","Accueil"],["classes","▦","Classes"],["teachers","♙","Enseignants"],["announcements","◈","Annonces"],["settings","◎","Compte"]];
   else if(!hasScheduleAccess()&&canAccessIntendance()) items=[["dashboard","⌂","Accueil"],["intendance","◫","Intendance"],["announcements","◈","Annonces"],["settings","◎","Compte"],["menu","☰","Plus"]];
   else if(!isDirector()) items=[["dashboard","⌂","Accueil"],["teachers","▤","Mon horaire"],[multi?"agenda":"assistant",multi?"▣":"✦",multi?"Agenda":"Assistant"],["announcements","◈","Annonces"],["settings","◎","Compte"]];
@@ -581,10 +590,14 @@ function applyRole() {
     const allowed = new Set(["dashboard","classes","teachers","announcements","settings"]);
     $$(".main-nav [data-view]").forEach((link) => { link.hidden = !allowed.has(link.dataset.view); });
   }
+  if (isScheduleObserver()) {
+    const allowed = new Set(["dashboard","classes","teachers","settings"]);
+    $$(".main-nav [data-view]").forEach((link) => { link.hidden = !allowed.has(link.dataset.view); });
+  }
   $("#account-name").textContent = state.profile.full_name;
   $("#account-role").textContent = isDualRole()
     ? (director ? `${managementLabel} + enseignant · espace ${managementLabel}` : `${managementLabel} + enseignant · espace personnel`)
-    : (isPromoterAssistant() ? "Assistant du promoteur · pilotage en lecture" : isHrViewer() ? "DRH · suivi des enseignants" : isDisciplineDirector() ? "Directeur de discipline · suivi des horaires" : (profileRoles().includes("intendant") ? "Intendant · gestion opérationnelle" : profileRoles().includes("intendance_viewer") ? "Intendance · lecture seule" : (viewerOnly ? `${managementLabel} · consultation complète` : (director ? `${managementLabel} · accès de gestion` : "Enseignant · accès personnel"))));
+    : (isPromoterAssistant() ? "Assistant du promoteur · pilotage en lecture" : isHrViewer() ? "DRH · suivi des enseignants" : isScheduleObserver() ? `${position} · horaires en lecture` : isDisciplineDirector() ? "Directeur de discipline · suivi des horaires" : (profileRoles().includes("intendant") ? "Intendant · gestion opérationnelle" : profileRoles().includes("intendance_viewer") ? "Intendance · lecture seule" : (viewerOnly ? `${managementLabel} · consultation complète` : (director ? `${managementLabel} · accès de gestion` : "Enseignant · accès personnel"))));
   $("#account-avatar").textContent = state.profile.full_name.charAt(0).toUpperCase();
   titles.teachers = director ? "Horaire des enseignants" : "Mon horaire";
   titles.assistant = director ? "Assistant de l’école" : "Mon assistant horaire";
@@ -609,6 +622,8 @@ function applyRole() {
     kicker.innerHTML="<i></i> Pilotage logistique APN";title.innerHTML="Les ressources de l’école,<br><em>sous contrôle.</em>";description.textContent="Suivez les stocks, les mouvements et le patrimoine, puis consultez les services des enseignants lorsque nécessaire.";$("#primary-schedule-button").dataset.go="intendance";$("#primary-schedule-button").textContent="Ouvrir l’Intendance";secondary.hidden=true;
   }else if(isHrViewer()){
     kicker.innerHTML="<i></i> Suivi administratif";title.innerHTML="Chaque service enseignant,<br><em>clair et vérifiable.</em>";description.textContent="Contrôlez les heures d’arrivée et de sortie prévues à partir de l’horaire officiel publié.";$("#primary-schedule-button").dataset.go="teachers";$("#primary-schedule-button").textContent="Suivre les enseignants";secondary.hidden=true;
+  }else if(isScheduleObserver()){
+    kicker.innerHTML="<i></i> Supervision de l’établissement";title.innerHTML="Les horaires essentiels,<br><em>visibles en direct.</em>";description.textContent="Consultez l’activité actuelle, puis ouvrez les horaires officiels par classe ou par enseignant.";$("#primary-schedule-button").dataset.go="classes";$("#primary-schedule-button").textContent="Voir les classes";secondary.hidden=true;
   }else{
     kicker.innerHTML="<i></i> Horaire officiel publié";title.innerHTML="Une semaine scolaire claire,<br><em>accessible partout.</em>";description.textContent="Consultez les cours par classe ou par enseignant, suivez la période en cours et téléchargez les documents certifiés.";secondary.hidden=!canManageSchoolContent();
   }
