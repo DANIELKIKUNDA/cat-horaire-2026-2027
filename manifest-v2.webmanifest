@@ -8,7 +8,7 @@
   "start_url": "./#dashboard",
   "scope": "./",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "prefer_related_applications": false,
   "orientation": "any",
   "background_color": "#f4f7fb",
   "theme_color": "#082b4c",
