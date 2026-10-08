@@ -67,6 +67,7 @@ function loginEmails(value) {
     `${input}@cat-horaire.local`,
     `${input}@apn-horaire.local`,
     `${input}@providence-horaire.local`,
+    `${input}@riziki-horaire.local`,
     `${input}@excellencia-horaire.local`,
   ];
 }
