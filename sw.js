@@ -1,6 +1,6 @@
-const CACHE = "horaire-pro-shell-v31";
+const CACHE = "horaire-pro-shell-v32";
 const CORE = [
-  "./", "index.html", "assets/styles.css?v=26", "assets/intendance.css?v=27", "assets/supabase.min.js", "assets/platform.js?v=25", "assets/smart.js?v=27", "assets/intendance.js?v=27", "assets/app.js?v=29",
+  "./", "index.html", "assets/styles.css?v=26", "assets/intendance.css?v=27", "assets/supabase.min.js", "assets/platform.js?v=25", "assets/smart.js?v=28", "assets/intendance.js?v=27", "assets/app.js?v=29",
   "assets/horaire-pro-logo.svg", "assets/favicon.svg", "assets/icon-pro-192.png", "assets/icon-pro-512.png",
   "assets/icon-pro-maskable-512.png", "assets/login-campus-v1.webp", "config.js", "manifest-v2.webmanifest?v=3"
 ];
@@ -36,12 +36,15 @@ self.addEventListener("fetch", (event) => {
 self.addEventListener("push", (event) => {
   let message = {title:"Horaire Pro",body:"Une nouvelle information est disponible.",url:"./#announcements"};
   try { message = {...message, ...event.data.json()}; } catch {}
-  event.waitUntil(self.registration.showNotification(message.title, {
+  const notification=self.registration.showNotification(message.title, {
     body:message.body, icon:"assets/icon-pro-192.png", badge:"assets/icon-pro-192.png",
     tag:message.tag || "horaire-pro-update", renotify:Boolean(message.renotify),
+    silent:false, requireInteraction:message.kind==="lesson-reminder",
     vibrate:message.vibrate || [700,250,700,250,900], timestamp:message.timestamp || Date.now(),
     data:{url:message.url || "./",kind:message.kind || "information"}
-  }));
+  });
+  const wakePage=message.kind==="lesson-reminder"?clients.matchAll({type:"window",includeUncontrolled:true}).then(windows=>{for(const client of windows)client.postMessage({type:"LESSON_REMINDER"});}):Promise.resolve();
+  event.waitUntil(Promise.all([notification,wakePage]));
 });
 
 self.addEventListener("notificationclick", (event) => {
