@@ -9,6 +9,9 @@
   "scope": "./",
   "display": "standalone",
   "prefer_related_applications": false,
+  "related_applications": [
+    {"platform":"webapp","url":"./manifest-v2.webmanifest","id":"https://horairepro.de/"}
+  ],
   "orientation": "any",
   "background_color": "#f4f7fb",
   "theme_color": "#082b4c",

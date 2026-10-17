@@ -90,6 +90,17 @@
     const {data:result,error}=await ctx.state.client.rpc("record_intendance_document_idempotent",{...args,p_idempotency_key:id});
     if(error)throw error;return result;
   }
+  function functionalError(error){
+    console.error("Intendance - échec technique",error);
+    const message=String(error?.message||error||"");
+    const known=["Stock insuffisant","Quantité invalide","Article de stock invalide","Conditionnement invalide","Destination requise","Source requise","Destination de transfert invalide","Motif de correction requis","Permission Intendance refusée","Article inaccessible","Document inaccessible"];
+    const normalize=value=>String(value).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("fr");
+    const normalizedMessage=normalize(message);
+    const business=known.find(label=>normalizedMessage.includes(normalize(label)));
+    if(business)return message;
+    if(isNetworkError(error))return "Connexion indisponible. L’opération reste conservée sur cet appareil et sera synchronisée automatiquement.";
+    return "L’opération n’a pas pu être enregistrée. Réessayez dans un instant ou contactez l’administrateur si le problème persiste.";
+  }
   async function recordMovement(args){
     const id=crypto.randomUUID();
     if(!navigator.onLine){queueMovement(args,id);renderTab();ctx.showToast("Mouvement enregistré hors connexion");return true;}
@@ -102,7 +113,7 @@
     syncing=true;renderTab();let rows=pending,done=0;
     for(const command of pending){
       try{await sendMovement(command.id,command.args);rows=rows.filter(row=>row.id!==command.id);saveQueue(rows);done++;}
-      catch(error){command.attempts=(command.attempts||0)+1;command.last_error=error.message||String(error);saveQueue(rows);if(isNetworkError(error))break;}
+      catch(error){command.attempts=(command.attempts||0)+1;command.last_error=functionalError(error);saveQueue(rows);if(isNetworkError(error))break;}
     }
     syncing=false;
     try{await fetchData(true);}catch{renderTab();}
@@ -278,7 +289,7 @@
     if(event.target.id==="int-asset-status"&&event.type==="change"){filterState.assetStatus=event.target.value;pageState.assets=1;renderTab();return;}
     if(event.target.id==="int-asset-location"&&event.type==="change"){filterState.assetLocation=event.target.value;pageState.assets=1;renderTab();}
   }
-  async function submitDialog(event){event.preventDefault();if(!submitHandler)return;const button=$("#intendance-dialog-submit"),status=$("#intendance-dialog-status");button.disabled=true;status.textContent="Enregistrement…";try{const result=await submitHandler();if(result!==false)closeDialog();}catch(error){status.textContent=error.message||String(error);}finally{button.disabled=false;}}
+  async function submitDialog(event){event.preventDefault();if(!submitHandler)return;const button=$("#intendance-dialog-submit"),status=$("#intendance-dialog-status");button.disabled=true;status.textContent="Enregistrement…";try{const result=await submitHandler();if(result!==false)closeDialog();}catch(error){status.textContent=functionalError(error);}finally{button.disabled=false;}}
   function refreshWhenActive(){if(document.visibilityState==="visible"&&navigator.onLine&&ctx?.state&&canRead()&&Date.now()-lastFetchedAt>=15000)fetchData(true).catch(error=>ctx.showToast(error.message||String(error)));}
   function bind(context){ctx=context;$("#intendance-tabs")?.addEventListener("click",handleClick);$("#intendance-content")?.addEventListener("click",handleClick);$("#intendance-content")?.addEventListener("input",handleFilter);$("#intendance-content")?.addEventListener("change",handleFilter);$$('[data-intendance-action]',$("#view-intendance")).forEach(b=>b.addEventListener("click",handleClick));$("#intendance-dialog-form")?.addEventListener("submit",submitDialog);$("#intendance-dialog-close")?.addEventListener("click",closeDialog);$("#intendance-dialog-cancel")?.addEventListener("click",closeDialog);window.addEventListener("online",()=>{setOffline(false);if(ctx?.state&&canRead())syncQueue().then(()=>fetchData(true)).catch(e=>ctx.showToast(e.message));});window.addEventListener("offline",()=>{setOffline(true);renderTab();});window.addEventListener("focus",refreshWhenActive);document.addEventListener("visibilitychange",refreshWhenActive);}
   function render(context){ctx=context;if(!canRead())return;applyWriteAccess();fetchData().then(()=>{if(navigator.onLine)syncQueue();}).catch(error=>{const host=$("#intendance-content");if(host)host.innerHTML=empty("!","Intendance indisponible",error.message||String(error));});}

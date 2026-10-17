@@ -2,6 +2,8 @@
   "use strict";
   let ctx;
   let installPrompt = window.__pwaInstallPrompt || null;
+  let relatedAppInstalled = false;
+  const INSTALL_MARKER = "horaire-pro-pwa-installed";
   let realtimeStarted = false;
   let lastAnalysis = null;
   let lastPeriodToken = "";
@@ -336,7 +338,17 @@
   function testLessonAlarm(){unlockAlarmAudio();const message="Test de l’alarme Horaire Pro. Le son et la voix fonctionnent.";playAlarmBurst();speakLesson(message);ctx.showToast("Test sonore lancé. Vérifiez aussi le volume et les notifications de Chrome.");}
   function onWorkerMessage(event){if(event.data?.type!=="LESSON_REMINDER")return;checkLessonAlarm(1);}
   function startRealtime(){if(realtimeStarted)return;realtimeStarted=true;const selected=ctx.state.platform?.selected_school_id;const scoped=selected?{filter:`school_id=eq.${selected}`}:{ };ctx.state.client.channel("horaire-pro-private").on("postgres_changes",{event:"INSERT",schema:"public",table:"announcements",...scoped},payload=>{browserNotify("Nouvelle annonce Horaire Pro",payload.new.title||"Une annonce vient d’être publiée");setTimeout(()=>ctx.reload({schoolId:selected,silent:true}),900);}).on("postgres_changes",{event:"INSERT",schema:"public",table:"schedule_changes",...scoped},payload=>{browserNotify("Horaire actualisé",`${payload.new.course||"Un cours"} a été modifié.`);setTimeout(()=>ctx.reload({schoolId:selected,silent:true}),900);}).subscribe();}
-  function isInstalled(){return window.matchMedia("(display-mode: standalone)").matches||window.navigator.standalone===true;}
+  function isInstalled(){return window.matchMedia("(display-mode: standalone)").matches||window.navigator.standalone===true||relatedAppInstalled||localStorage.getItem(INSTALL_MARKER)==="1";}
+  async function detectInstalledApp(){
+    if(window.matchMedia("(display-mode: standalone)").matches||window.navigator.standalone===true){localStorage.setItem(INSTALL_MARKER,"1");syncInstallButtons();return true;}
+    if(typeof navigator.getInstalledRelatedApps!=="function")return isInstalled();
+    try{
+      const apps=await navigator.getInstalledRelatedApps();
+      relatedAppInstalled=apps.some(app=>app.platform==="webapp"&&(app.id==="https://horairepro.de/"||String(app.url||"").includes("manifest-v2.webmanifest")));
+      if(relatedAppInstalled)localStorage.setItem(INSTALL_MARKER,"1");else localStorage.removeItem(INSTALL_MARKER);
+    }catch(error){console.warn("Détection de l’installation indisponible",error);}
+    syncInstallButtons();return isInstalled();
+  }
   function currentInstallPrompt(){return installPrompt||window.__pwaInstallPrompt||null;}
   function syncInstallButtons(){const installed=isInstalled(),ready=Boolean(currentInstallPrompt());const top=$("#install-app-button"),settings=$("#settings-install");if(top){top.hidden=installed||!ready;top.classList.toggle("ready",ready);}if(settings){settings.hidden=installed;settings.textContent=ready?"Installer l’application":"Options d’installation";}}
   function installHelpText(){const agent=navigator.userAgent;if(/iphone|ipad|ipod/i.test(agent))return ["Installation depuis Safari","Touchez Partager, puis Sur l’écran d’accueil."];if(/android/i.test(agent)&&/chrome|crios/i.test(agent))return ["Installation gérée par Chrome","Si le bouton natif n’apparaît pas encore, touchez ⋮ puis Installer l’application. Chrome peut temporairement masquer cette option après une installation ou un refus."];return ["Installation gérée par le navigateur","Utilisez l’option Installer l’application dans le menu du navigateur si elle n’est pas encore proposée ici."];}
@@ -354,6 +366,7 @@
   function tick(context,periodToken){ctx=context;updateCountdown();checkLessonAlarm();if(periodToken!==lastPeriodToken){lastPeriodToken=periodToken;renderFocus();renderOperations();}}
   function bind(context){ctx=context;
     syncInstallButtons();
+    detectInstalledApp();
     document.addEventListener("pointerdown",unlockAlarmAudio,{once:true,passive:true});
     navigator.serviceWorker?.addEventListener("message",onWorkerMessage);
     document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){unlockAlarmAudio();checkLessonAlarm(1);}});
@@ -365,10 +378,11 @@
     $("#announcement-audience")?.addEventListener("change",e=>$("#announcement-teacher-wrap").hidden=e.target.value!=="teacher");$("#announcement-form")?.addEventListener("submit",publishAnnouncement);$("#assistant-form")?.addEventListener("submit",askAssistant);$("#account-search")?.addEventListener("input",e=>renderAccounts(e.target.value));$("#account-role-filter")?.addEventListener("change",()=>renderAccounts());$("#account-status-filter")?.addEventListener("change",()=>renderAccounts());$("#password-form")?.addEventListener("submit",changePassword);$("#export-calendar")?.addEventListener("click",exportCalendar);$("#export-stats")?.addEventListener("click",exportStats);
   }
 
-  window.addEventListener("beforeinstallprompt",event=>{event.preventDefault();if(isInstalled())return;installPrompt=event;window.__pwaInstallPrompt=event;syncInstallButtons();updateInstallGuide();});
+  window.addEventListener("beforeinstallprompt",event=>{event.preventDefault();relatedAppInstalled=false;localStorage.removeItem(INSTALL_MARKER);installPrompt=event;window.__pwaInstallPrompt=event;syncInstallButtons();updateInstallGuide();});
   window.addEventListener("horairepro-install-ready",()=>{installPrompt=window.__pwaInstallPrompt;syncInstallButtons();updateInstallGuide();});
-  window.addEventListener("appinstalled",()=>{installPrompt=null;window.__pwaInstallPrompt=null;syncInstallButtons();ctx?.showToast("Horaire Pro est installée");});
+  window.addEventListener("appinstalled",()=>{installPrompt=null;window.__pwaInstallPrompt=null;relatedAppInstalled=true;localStorage.setItem(INSTALL_MARKER,"1");syncInstallButtons();ctx?.showToast("Horaire Pro est installée");});
   window.matchMedia("(display-mode: standalone)").addEventListener?.("change",syncInstallButtons);
+  window.addEventListener("focus",detectInstalledApp);
 
   window.CATSmart={render,bind,tick,scheduleEntries,loadOffline,kinshasaDate};
 })();
