@@ -1,21 +1,7 @@
-﻿# Portail sécurisé CAT 2026-2027
+# Portail Horaire Pro
 
-Interface officielle de consultation de l’horaire du Collège des Aumôniers du Travail.
+PWA de consultation multi-écoles. Le compte utilisateur est global ; ses droits sont définis pour chaque école par Supabase. Les enseignants consultent leurs propres cours, les responsables autorisés disposent des vues de suivi, et seuls les administrateurs de plateforme voient le centre de gestion commerciale.
 
-## Confidentialité
+Le répertoire publié contient des ressources publiques uniquement. `config.js` fournit l’URL Supabase et la clé publiable ; aucune clé de service, mot de passe ou base complète ne doit être placé sur GitHub Pages.
 
-- un visiteur non connecté voit uniquement l’écran de connexion ;
-- un enseignant reçoit uniquement son propre horaire ;
-- la direction consulte toutes les classes, tous les enseignants et les PDF ;
-- aucune donnée complète ni aucun PDF n’est enregistré dans ce dossier public ;
-- Supabase applique les autorisations côté serveur avec Row Level Security.
-
-## Configuration
-
-Le fichier `config.js` contient seulement l’URL Supabase et la clé `publishable`. La clé `secret` ne doit jamais entrer dans ce dépôt.
-
-Les instructions de création du projet et de provisionnement sont dans `../secure_setup/README.md` dans le dossier de travail privé.
-
-## Publication
-
-Le workflow `.github/workflows/pages.yml` publie automatiquement ce dossier sur GitHub Pages après une mise à jour de la branche `main`.
+Le déploiement du portail suit la migration Supabase et la recette des rôles. Le script `scripts/publish-web.ps1` copie les ressources vers le dépôt GitHub Pages existant en préservant sa configuration publique. La mise en ligne se fait ensuite par GitHub Pages après validation du commit.

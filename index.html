@@ -28,7 +28,7 @@
   </script>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="manifest-v2.webmanifest?v=4">
-  <link rel="stylesheet" href="assets/styles.css?v=26">
+  <link rel="stylesheet" href="assets/styles.css?v=27">
   <link rel="stylesheet" href="assets/intendance.css?v=27">
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Horaire Pro","url":"https://horairepro.de/","applicationCategory":"EducationalApplication","operatingSystem":"Web, Android, Windows, iOS","description":"Plateforme sécurisée de gestion des horaires scolaires et de l’intendance."}</script>
 </head>
@@ -55,6 +55,7 @@
       <button class="primary-button wide login-button" type="submit">Accéder à mon espace <span>→</span></button>
       <div class="login-status" id="login-status" role="status" aria-live="polite"></div>
       <small class="privacy-note">Connexion sécurisée · Session conservée sur cet appareil</small>
+      <small class="privacy-note"><a href="confidentialite.html">Confidentialité</a> · <a href="conditions.html">Conditions d’utilisation</a></small>
       <small class="volcano-signature login-signature">From Volcano Tech</small>
     </form>
   </section>
@@ -88,6 +89,7 @@
         <a href="#stats" data-view="stats" data-management data-schedule-access><span>▥</span> Statistiques</a>
         <a href="#intendance" data-view="intendance" data-intendance hidden><span>◫</span> Intendance</a>
         <a href="#accounts" data-view="accounts" data-account-manager-only><span>◎</span> Comptes</a>
+        <a href="#platform-admin" data-view="platform-admin" data-system-admin-only hidden><span>◆</span> Plateforme</a>
         <a href="#history" data-view="history" data-history data-schedule-access><span>◴</span> Années et versions</a>
         <a href="#documents" data-view="documents" data-management data-schedule-access><span>▤</span> Documents officiels</a>
         <a href="#settings" data-view="settings"><span>⚙</span> Paramètres</a>
@@ -286,6 +288,21 @@
           <article class="panel audit-panel"><div class="panel-heading"><div><span class="eyebrow">Traçabilité</span><h3>Journal des actions</h3></div></div><div id="audit-list" class="activity-list"></div></article>
         </section>
 
+        <section class="view" id="view-platform-admin" data-system-admin-only hidden>
+          <div class="section-intro"><div><span class="eyebrow">Volcano Tech</span><h2>Centre d’administration Horaire Pro</h2><p>Établissements, abonnements, installations et publications depuis un seul espace sécurisé.</p></div><button class="secondary-ink-button" id="platform-refresh" type="button">Actualiser</button></div>
+          <div class="account-kpis platform-kpis" id="platform-kpis"></div>
+          <form class="panel smart-form membership-form" id="platform-school-form">
+            <div class="panel-heading"><div><span class="eyebrow">Nouveau client</span><h3>Créer un établissement</h3></div></div>
+            <div class="form-grid"><label>Nom officiel<input id="platform-school-name" required></label><label>Nom court<input id="platform-school-short-name" maxlength="20" required></label><label>Adresse<input id="platform-school-address"></label><label>Première année scolaire<input id="platform-school-year-label" placeholder="2027-2028"></label><label>Début<input id="platform-school-year-start" type="date"></label><label>Fin<input id="platform-school-year-end" type="date"></label></div>
+            <div class="form-actions"><button class="primary-button" type="submit">Créer et ouvrir l’établissement</button><span id="platform-school-status"></span></div>
+          </form>
+          <article class="panel">
+            <div class="account-toolbar"><input id="platform-school-search" type="search" placeholder="Rechercher une école…"><select id="platform-status-filter"><option value="">Tous les abonnements</option><option value="trial">Essai</option><option value="active">Actif</option><option value="grandfathered">Historique</option><option value="past_due">Paiement en retard</option><option value="suspended">Suspendu</option><option value="cancelled">Résilié</option></select><span id="platform-school-summary"></span></div>
+            <div id="platform-school-table" class="platform-admin-table"></div>
+          </article>
+          <div class="one-time-secret platform-secret" id="platform-activation-secret" hidden><span>Code d’activation — affiché une seule fois</span><div><code id="platform-activation-code"></code><button type="button" id="platform-copy-activation">Copier</button></div><small id="platform-activation-expiry"></small></div>
+        </section>
+
         <section class="view" id="view-history">
           <div class="section-intro"><div><span class="eyebrow">Conservation intégrale</span><h2>Années scolaires et versions</h2><p>Consultez les horaires publiés, archivés ou en préparation sans écraser l’historique.</p></div></div>
           <div id="year-tabs" class="year-tabs"></div>
@@ -385,9 +402,9 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="assets/supabase.min.js" defer></script>
   <script src="config.js" defer></script>
-  <script src="assets/platform.js?v=25" defer></script>
+  <script src="assets/platform.js?v=26" defer></script>
   <script src="assets/smart.js?v=29" defer></script>
   <script src="assets/intendance.js?v=28" defer></script>
-  <script src="assets/app.js?v=29" defer></script>
+  <script src="assets/app.js?v=30" defer></script>
 </body>
 </html>

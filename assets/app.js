@@ -152,6 +152,7 @@ const titles = {
   stats: "Statistiques",
   intendance: "Intendance",
   accounts: "Comptes et accès",
+  "platform-admin": "Administration de la plateforme",
   history: "Années et versions",
   documents: "Documents officiels",
   settings: "Mon compte",
@@ -224,6 +225,7 @@ function setView(view, updateHash = true) {
   if (view === "changes" && !canOperateSchool()) view = "dashboard";
   if (["stats", "documents"].includes(view) && !canManageSchoolContent()) view = "dashboard";
   if (view === "accounts" && !canManageAccounts()) view = "dashboard";
+  if (view === "platform-admin" && !isSystemAdmin()) view = "dashboard";
   state.view = view;
   $$(".view").forEach((element) => element.classList.toggle("active", element.id === `view-${view}`));
   $$(".main-nav a").forEach((link) => link.classList.toggle("active", link.dataset.view === view));
@@ -549,7 +551,8 @@ async function openDocument(path) {
 function renderMobileNav() {
   const host=$("#mobile-bottom-nav");if(!host)return;
   const roles=profileRoles();const multi=(state.platform?.schools||[]).length>1;let items;
-  if(isPromoterAssistant()) items=[["dashboard","⌂","Accueil"],["intendance","◫","Intendance"],["teachers","♙","Enseignants"],["classes","▦","Classes"],["settings","◎","Compte"]];
+  if(isSystemAdmin()) items=[["dashboard","⌂","Accueil"],["platform-admin","◆","Plateforme"],["classes","▦","Classes"],["accounts","◎","Comptes"],["menu","☰","Plus"]];
+  else if(isPromoterAssistant()) items=[["dashboard","⌂","Accueil"],["intendance","◫","Intendance"],["teachers","♙","Enseignants"],["classes","▦","Classes"],["settings","◎","Compte"]];
   else if(isHrViewer()) items=[["dashboard","⌂","Accueil"],["teachers","♙","Enseignants"],["settings","◎","Compte"]];
   else if(isScheduleObserver()) items=[["dashboard","⌂","En direct"],["classes","▦","Classes"],["teachers","♙","Enseignants"],["settings","◎","Compte"]];
   else if(isDisciplineDirector()) items=[["dashboard","⌂","Accueil"],["classes","▦","Classes"],["teachers","♙","Enseignants"],["announcements","◈","Annonces"],["settings","◎","Compte"]];
@@ -580,6 +583,7 @@ function applyRole() {
   $$('[data-history]').forEach((element) => { element.hidden = !director; });
   $$('[data-multi-school]').forEach((element) => { element.hidden = (state.platform?.schools || []).length < 2; });
   $$('[data-account-manager-only]').forEach((element) => { element.hidden = !director || !canManageAccounts(); });
+  $$('[data-system-admin-only]').forEach((element) => { element.hidden = !isSystemAdmin(); });
   $$('[data-intendance]').forEach((element) => { element.hidden = !canAccessIntendance(); });
   $$('[data-intendance-write]').forEach((element) => { element.hidden = !canWriteIntendance(); });
   $$('[data-schedule-access]').forEach((element) => { if (!hasScheduleAccess()) element.hidden = true; });

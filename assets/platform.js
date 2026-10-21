@@ -9,6 +9,7 @@
   let selectedDate = new Date();
   let weekMode = false;
   let selectedYearId = null;
+  let adminDashboard = {schools:[]};
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
   const h = (value) => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
@@ -190,6 +191,86 @@
     $$('[data-system-admin-only]').forEach((node)=>{node.hidden=!ctx.state.profile?.is_system_admin;});
   }
 
+  const subscriptionLabels={trial:"Essai",active:"Actif",past_due:"Paiement en retard",suspended:"Suspendu",cancelled:"Résilié",grandfathered:"Historique"};
+  const dateValue=(value)=>value?String(value).slice(0,10):"";
+
+  async function loadAdminDashboard() {
+    if(!ctx.state.profile?.is_system_admin)return;
+    const host=$("#platform-school-table");
+    if(host&&!adminDashboard.schools.length)host.innerHTML='<div class="empty-state">Chargement des établissements…</div>';
+    const {data,error}=await ctx.state.client.rpc("get_platform_admin_dashboard");
+    if(error){if(host)host.innerHTML=`<div class="empty-state">${h(error.message||"Centre administrateur indisponible")}</div>`;return;}
+    adminDashboard=data||{schools:[]};renderAdminDashboard();
+  }
+
+  function renderAdminDashboard() {
+    if(!ctx.state.profile?.is_system_admin)return;
+    const schools=adminDashboard.schools||[];
+    const counts={active:0,trial:0,attention:0,installations:0};
+    for(const school of schools){
+      if(["active","grandfathered"].includes(school.subscription_status))counts.active++;
+      if(school.subscription_status==="trial")counts.trial++;
+      if(["past_due","suspended","cancelled"].includes(school.subscription_status))counts.attention++;
+      counts.installations+=Number(school.active_installations||0);
+    }
+    $("#platform-kpis").innerHTML=[
+      [schools.length,"Établissements"],[counts.active,"Abonnements actifs"],[counts.trial,"Essais en cours"],[counts.installations,"Studios activés"]
+    ].map(([value,label])=>`<article><strong>${h(value)}</strong><span>${h(label)}</span></article>`).join("");
+    const query=$("#platform-school-search").value.trim().toLowerCase();
+    const status=$("#platform-status-filter").value;
+    const visible=schools.filter((school)=>(!query||`${school.name} ${school.short_name} ${school.address||""}`.toLowerCase().includes(query))&&(!status||school.subscription_status===status));
+    $("#platform-school-summary").textContent=`${visible.length} établissement${visible.length>1?"s":""}`;
+    const plans=["ESSAI","ECOLE","RESEAU","LEGACY"],statuses=["trial","active","past_due","suspended","cancelled","grandfathered"];
+    $("#platform-school-table").innerHTML=`<div class="platform-school-row header"><span>Établissement</span><span>Abonnement</span><span>Comptes</span><span>Installations</span><span>Versions</span><span>Gestion</span></div>`+visible.map((school)=>`<article class="platform-school-row" data-admin-school="${h(school.id)}">
+      <div><h4>${h(school.name)}</h4><small>${h(school.short_name)} · ${h(school.address||"Adresse non renseignée")}</small><small>Dernière publication : ${school.last_publication?new Date(school.last_publication).toLocaleString("fr-FR"):"aucune"}</small></div>
+      <div><span class="status-pill ${h(school.subscription_status||"")}">${h(subscriptionLabels[school.subscription_status]||"Non configuré")}</span><small>${h(school.plan_code||"—")}</small></div>
+      <strong class="metric">${h(school.active_users||0)}</strong><strong class="metric">${h(school.active_installations||0)}</strong><strong class="metric">${h(school.certified_versions||0)}</strong>
+      <div class="platform-subscription"><select data-admin-plan>${plans.map((item)=>`<option value="${item}" ${item===school.plan_code?"selected":""}>${item}</option>`).join("")}</select><select data-admin-status>${statuses.map((item)=>`<option value="${item}" ${item===school.subscription_status?"selected":""}>${h(subscriptionLabels[item])}</option>`).join("")}</select><input data-admin-expiry type="date" value="${h(dateValue(school.current_period_ends_at||school.trial_ends_at))}" title="Fin de la période"><button type="button" data-admin-save>Enregistrer</button></div>
+      <div class="platform-row-actions"><button type="button" data-admin-open>Ouvrir l’école</button><button type="button" class="primary" data-admin-activation>Créer un code d’activation</button>${(school.installations||[]).filter((item)=>!item.revoked_at).map((item)=>`<button type="button" data-admin-revoke-installation="${h(item.id)}" title="Version ${h(item.app_version||"inconnue")}">Désactiver ${h(item.device_label||"ordinateur")}</button>`).join("")}</div>
+    </article>`).join("")||'<div class="empty-state">Aucun établissement ne correspond aux filtres.</div>';
+  }
+
+  async function createPlatformSchool(event){
+    event.preventDefault();const status=$("#platform-school-status");status.textContent="Création…";
+    const label=$("#platform-school-year-label").value.trim();
+    const body={action:"create",name:$("#platform-school-name").value.trim(),short_name:$("#platform-school-short-name").value.trim(),address:$("#platform-school-address").value.trim(),academic_year:label?{label,start_date:$("#platform-school-year-start").value,end_date:$("#platform-school-year-end").value}:null};
+    const {data,error}=await ctx.state.client.functions.invoke("manage-school",{body});
+    status.textContent=error?error.message:"Établissement créé avec un essai de 30 jours.";
+    if(!error&&data?.school?.id){event.target.reset();await loadAdminDashboard();await switchSchool(data.school.id);}
+  }
+
+  async function saveAdminSubscription(row){
+    const schoolId=row.dataset.adminSchool,status=row.querySelector("[data-admin-status]").value,plan=row.querySelector("[data-admin-plan]").value,expiry=row.querySelector("[data-admin-expiry]").value;
+    const button=row.querySelector("[data-admin-save]");button.disabled=true;button.textContent="Enregistrement…";
+    const body={school_id:schoolId,plan_code:plan,status,note:"Mise à jour depuis le centre administrateur"};
+    if(status==="trial")body.trial_ends_at=expiry?`${expiry}T23:59:59Z`:new Date(Date.now()+30*86400000).toISOString();
+    else if(status==="active")body.current_period_ends_at=expiry?`${expiry}T23:59:59Z`:null;
+    const {error}=await ctx.state.client.functions.invoke("manage-subscription",{body});
+    if(error){ctx.showToast(error.message||"Mise à jour refusée");button.disabled=false;button.textContent="Enregistrer";return;}
+    ctx.showToast("Abonnement mis à jour");await loadAdminDashboard();
+  }
+
+  async function createActivationCode(row){
+    const schoolId=row.dataset.adminSchool;const button=row.querySelector("[data-admin-activation]");button.disabled=true;button.textContent="Création…";
+    const {data,error}=await ctx.state.client.rpc("create_school_activation_code",{p_school_id:schoolId,p_valid_hours:72,p_max_uses:1});
+    button.disabled=false;button.textContent="Créer un code d’activation";
+    if(error){ctx.showToast(error.message||"Code impossible");return;}
+    $("#platform-activation-code").textContent=data.code;$("#platform-activation-expiry").textContent=`Valable jusqu’au ${new Date(data.expires_at).toLocaleString("fr-FR")} · une activation`;$("#platform-activation-secret").hidden=false;
+  }
+
+  async function copyActivationCode(){const value=$("#platform-activation-code").textContent;if(!value)return;await navigator.clipboard.writeText(value);ctx.showToast("Code d’activation copié");}
+
+  async function revokeInstallation(button){
+    if(!confirm(`Désactiver ${button.textContent.replace("Désactiver ","")} ? L’école devra utiliser un nouveau code pour reconnecter cet ordinateur.`))return;
+    const reason=prompt("Motif de la désactivation :","Remplacement ou retrait de l’ordinateur")||"Désactivation administrative";
+    button.disabled=true;
+    const {error}=await ctx.state.client.rpc("revoke_studio_installation",{p_installation_id:button.dataset.adminRevokeInstallation,p_reason:reason});
+    if(error){button.disabled=false;ctx.showToast(error.message||"Désactivation impossible");return;}
+    ctx.showToast("Installation désactivée");await loadAdminDashboard();
+  }
+
+  function handleAdminTable(event){const row=event.target.closest("[data-admin-school]");if(!row)return;if(event.target.closest("[data-admin-save]"))saveAdminSubscription(row);if(event.target.closest("[data-admin-activation]"))createActivationCode(row);if(event.target.closest("[data-admin-open]"))switchSchool(row.dataset.adminSchool);const revoke=event.target.closest("[data-admin-revoke-installation]");if(revoke)revokeInstallation(revoke);}
+
   function setConnectivity() {
     const banner=$("#connectivity-banner");
     if(navigator.onLine){banner.hidden=true;return;}
@@ -304,7 +385,7 @@
   }
   async function copyTemporaryPassword(){const value=$("#membership-temporary-password-value").textContent;if(!value)return;await navigator.clipboard.writeText(value);ctx.showToast("Mot de passe temporaire copié");}
 
-  function render(context) { ctx=context; if(!ctx.state.platform)return; renderSchoolControls();renderAgenda();renderHistory();renderRoles();setConnectivity(); }
+  function render(context) { ctx=context; if(ctx.state.profile?.is_system_admin)loadAdminDashboard(); if(!ctx.state.platform)return; renderSchoolControls();renderAgenda();renderHistory();renderRoles();setConnectivity(); }
   function bind(context) {
     ctx=context;
     $("#school-switcher")?.addEventListener("change",(event)=>switchSchool(event.target.value));
@@ -321,6 +402,12 @@
     $("#membership-form")?.addEventListener("submit",inviteMember);
     $("#academic-year-form")?.addEventListener("submit",createAcademicYear);
     $("#school-form")?.addEventListener("submit",createSchool);
+    $("#platform-school-form")?.addEventListener("submit",createPlatformSchool);
+    $("#platform-refresh")?.addEventListener("click",loadAdminDashboard);
+    $("#platform-school-search")?.addEventListener("input",renderAdminDashboard);
+    $("#platform-status-filter")?.addEventListener("change",renderAdminDashboard);
+    $("#platform-school-table")?.addEventListener("click",handleAdminTable);
+    $("#platform-copy-activation")?.addEventListener("click",copyActivationCode);
     $("#membership-edit-form")?.addEventListener("submit",saveMembership);
     $("#membership-edit-close")?.addEventListener("click",()=>{$("#membership-modal").hidden=true;});
     $("#membership-remove")?.addEventListener("click",removeMembership);
